@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-ink text-slate-100 antialiased;
+    background-image: radial-gradient(circle at 18% -10%, #16222e 0%, transparent 55%);
+    background-attachment: fixed;
+  }
+
+  /* Foco sempre visivel, com contraste suficiente sobre o painel escuro. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-open ring-offset-2 ring-offset-ink;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-edge bg-panel/80;
+  }
+
+  .chip {
+    @apply rounded-full border border-edge px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-muted;
+  }
+}

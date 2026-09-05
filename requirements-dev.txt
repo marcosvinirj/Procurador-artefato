@@ -1,0 +1,4 @@
+# Só para desenvolvimento local. A Vercel não instala este ficheiro.
+-r requirements.txt
+pytest==8.3.4
+uvicorn==0.34.0
