@@ -175,9 +175,9 @@ const DICTS: Record<Locale, Dict> = { en, pt, es };
 /** So os 4 slugs fixos do seed. Uma categoria desconhecida cai no proprio slug
  *  em vez de rebentar — mesma filosofia do backend: nunca inventar, nunca falhar. */
 export const CATEGORY_LABEL: Record<Locale, Dict> = {
-  en: { brinquedos: 'Toys', decoracao: 'Decor', gadgets: 'Gadgets', utilidades: 'Utilities' },
-  pt: { brinquedos: 'Brinquedos', decoracao: 'Decoração', gadgets: 'Gadgets', utilidades: 'Utilidades' },
-  es: { brinquedos: 'Juguetes', decoracao: 'Decoración', gadgets: 'Gadgets', utilidades: 'Utilidades' },
+  en: { brinquedos: 'Toys', decoracao: 'Decor', gadgets: 'Tech', utilidades: 'Utilities' },
+  pt: { brinquedos: 'Brinquedos', decoracao: 'Decoração', gadgets: 'Tech', utilidades: 'Utilidades' },
+  es: { brinquedos: 'Juguetes', decoracao: 'Decoración', gadgets: 'Tech', utilidades: 'Utilidades' },
 };
 
 export function categoryLabel(locale: Locale, raw: string): string {
