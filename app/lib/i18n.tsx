@@ -70,7 +70,7 @@ const pt: Dict = {
   'header.language_label': 'Idioma',
   'page.heading': 'O que imprimir para vender',
   'page.subtitle':
-    'Ordenado por oportunidade: procura de compra em alta com o mercado ainda aberto. Um modelo em alta de atenção ainda pontua baixo se a concorrência já o saturou.',
+    'Ordenado por oportunidade: procura de compra em alta com o mercado ainda aberto. Um modelo com a atenção em alta ainda pontua baixo se a concorrência já o saturou.',
   'filters.search': 'Procurar modelo ou palavra-chave…',
   'filters.all': 'todas',
   'filters.category_aria': 'Filtrar por categoria',
@@ -249,7 +249,7 @@ const NAME_LABEL: Record<Locale, Dict> = {
     'Suporte de Telemovel': 'Soporte de Teléfono',
     'Caixa Modular Empilhavel': 'Caja Apilable Modular',
     'Abridor de Frascos': 'Abridor de Frascos',
-    'Suporte de Papel Higienico': 'Portarrollos de Papel',
+    'Suporte de Papel Higienico': 'Portarrollos',
     'Suporte de Chaves de Parede': 'Llavero de Pared',
     'Dock para Switch': 'Dock para Switch',
     'Suporte de Comando': 'Soporte de Mando',
