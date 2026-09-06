@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 import { ScoreGauge } from '@/components/ScoreGauge';
-import { categoryLabel, keywordLabel, useTranslation } from '@/lib/i18n';
+import { categoryLabel, nameLabel, useTranslation } from '@/lib/i18n';
 import { TONE_TEXT, formatNumber, toneOf } from '@/lib/score';
 import type { ModelSummary } from '@/lib/types';
 
@@ -18,10 +18,9 @@ export function ModelCard({ model }: { model: ModelSummary }) {
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[15px] font-medium text-slate-100">{model.name}</h2>
-          <p className="mt-1 truncate font-mono text-xs text-muted">
-            {keywordLabel(locale, model.keyword)}
-          </p>
+          <h2 className="text-[15px] font-medium leading-snug text-slate-100">
+            {nameLabel(locale, model.name)}
+          </h2>
         </div>
         <ScoreGauge score={model.score} />
       </div>

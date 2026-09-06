@@ -6,17 +6,20 @@ import { Filters } from '@/components/Filters';
 import { ModelCard } from '@/components/ModelCard';
 import { EmptyState, ErrorState, LoadingGrid } from '@/components/StateView';
 import { useJson } from '@/lib/api';
-import { useTranslation } from '@/lib/i18n';
+import { nameLabel, useTranslation, type Locale } from '@/lib/i18n';
 import type { ModelSummary, ModelsResponse } from '@/lib/types';
 
 /** Os sinonimos entram na busca tal como na API: quem procura "kraken" tem de
- *  encontrar o polvo articulado. */
-function haystack(model: ModelSummary): string {
-  return [model.name, model.keyword, ...model.synonyms].join(' ').toLowerCase();
+ *  encontrar o polvo articulado. O nome entra nas duas formas — a do idioma
+ *  atual (o que a pessoa esta a ler) e a da base de dados. */
+function haystack(model: ModelSummary, locale: Locale): string {
+  return [nameLabel(locale, model.name), model.name, model.keyword, ...model.synonyms]
+    .join(' ')
+    .toLowerCase();
 }
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { data, error, loading, reload } = useJson<ModelsResponse>('/api/models');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
@@ -27,9 +30,9 @@ export default function Dashboard() {
     return (data?.models ?? []).filter(
       (model) =>
         (category === null || model.category === category) &&
-        (needle === '' || haystack(model).includes(needle)),
+        (needle === '' || haystack(model, locale).includes(needle)),
     );
-  }, [data, query, category]);
+  }, [data, query, category, locale]);
 
   return (
     <div className="space-y-6">

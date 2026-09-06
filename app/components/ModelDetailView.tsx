@@ -7,7 +7,7 @@ import { ScoreGauge } from '@/components/ScoreGauge';
 import { ErrorState, LoadingGrid } from '@/components/StateView';
 import { TrendChart } from '@/components/TrendChart';
 import { useJson } from '@/lib/api';
-import { categoryLabel, keywordLabel, useTranslation } from '@/lib/i18n';
+import { categoryLabel, nameLabel, useTranslation } from '@/lib/i18n';
 import { TONE_TEXT, formatNumber, toneOf } from '@/lib/score';
 import type { ModelDetail } from '@/lib/types';
 
@@ -39,15 +39,25 @@ function Detail({ model }: { model: ModelDetail }) {
     <>
       <section className="panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-50">{model.name}</h1>
-          <p className="mt-1 font-mono text-xs text-muted">{keywordLabel(locale, model.keyword)}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="chip">{categoryLabel(locale, model.category)}</span>
-            {model.synonyms.map((synonym) => (
-              <span key={synonym} className="chip">
-                {synonym}
-              </span>
-            ))}
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50">
+            {nameLabel(locale, model.name)}
+          </h1>
+          <span className="chip mt-3 inline-block">{categoryLabel(locale, model.category)}</span>
+
+          {/* Termos de mercado ficam em ingles de proposito: e o que se escreve
+              no Etsy, e e por eles que a recolha mede procura e concorrencia. */}
+          <div className="mt-4">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-muted">
+              {t('detail.market_terms')}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              <span className="chip border-open/40 text-slate-200">{model.keyword}</span>
+              {model.synonyms.map((synonym) => (
+                <span key={synonym} className="chip">
+                  {synonym}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4 sm:flex-col sm:items-end sm:gap-1">
