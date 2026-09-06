@@ -1,10 +1,14 @@
-import { TONE_HEX, TONE_LABEL, toneOf } from '@/lib/score';
+'use client';
+
+import { useTranslation } from '@/lib/i18n';
+import { TONE_HEX, toneOf } from '@/lib/score';
 
 const RADIUS = 42;
 const ARC = Math.PI * RADIUS;
 
 /** Medidor semicircular: a cor comunica a decisao antes de se ler o numero. */
 export function ScoreGauge({ score, large = false }: { score: number; large?: boolean }) {
+  const { t } = useTranslation();
   const tone = toneOf(score);
   const clamped = Math.max(0, Math.min(100, score));
 
@@ -13,7 +17,7 @@ export function ScoreGauge({ score, large = false }: { score: number; large?: bo
       viewBox="0 0 100 58"
       className={large ? 'h-24 w-40' : 'h-14 w-24'}
       role="img"
-      aria-label={`Score de oportunidade ${Math.round(score)} em 100 — ${TONE_LABEL[tone]}`}
+      aria-label={t('gauge.aria', { score: Math.round(score), tone: t(`tone.${tone}`) })}
     >
       <path
         d="M 8 50 A 42 42 0 0 1 92 50"

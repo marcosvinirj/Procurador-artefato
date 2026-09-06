@@ -1,5 +1,7 @@
 'use client';
 
+import { categoryLabel, useTranslation } from '@/lib/i18n';
+
 interface FiltersProps {
   query: string;
   onQuery: (value: string) => void;
@@ -9,22 +11,24 @@ interface FiltersProps {
 }
 
 export function Filters({ query, onQuery, categories, active, onCategory }: FiltersProps) {
+  const { t, locale } = useTranslation();
+
   return (
     <div className="flex flex-col gap-3">
       <label className="block">
-        <span className="sr-only">Procurar modelo ou palavra-chave</span>
+        <span className="sr-only">{t('filters.search')}</span>
         <input
           type="search"
           value={query}
           onChange={(event) => onQuery(event.target.value)}
-          placeholder="Procurar modelo ou palavra-chave…"
+          placeholder={t('filters.search')}
           className="w-full rounded-lg border border-edge bg-panel/80 px-3 py-2.5 font-mono text-sm text-slate-100 placeholder:text-muted"
         />
       </label>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoria">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.category_aria')}>
         <CategoryButton active={active === null} onClick={() => onCategory(null)}>
-          todas
+          {t('filters.all')}
         </CategoryButton>
         {categories.map((category) => (
           <CategoryButton
@@ -32,7 +36,7 @@ export function Filters({ query, onQuery, categories, active, onCategory }: Filt
             active={active === category}
             onClick={() => onCategory(active === category ? null : category)}
           >
-            {category}
+            {categoryLabel(locale, category)}
           </CategoryButton>
         ))}
       </div>

@@ -6,6 +6,7 @@ import { Filters } from '@/components/Filters';
 import { ModelCard } from '@/components/ModelCard';
 import { EmptyState, ErrorState, LoadingGrid } from '@/components/StateView';
 import { useJson } from '@/lib/api';
+import { useTranslation } from '@/lib/i18n';
 import type { ModelSummary, ModelsResponse } from '@/lib/types';
 
 /** Os sinonimos entram na busca tal como na API: quem procura "kraken" tem de
@@ -15,6 +16,7 @@ function haystack(model: ModelSummary): string {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { data, error, loading, reload } = useJson<ModelsResponse>('/api/models');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
@@ -33,12 +35,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       <section className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-          O que imprimir para vender
+          {t('page.heading')}
         </h1>
-        <p className="max-w-2xl text-sm leading-relaxed text-muted">
-          Ordenado por oportunidade: procura de compra a subir com o mercado ainda por fechar. Um
-          modelo a bombar em atencao pontua baixo se a concorrencia ja o saturou.
-        </p>
+        <p className="max-w-2xl text-sm leading-relaxed text-muted">{t('page.subtitle')}</p>
       </section>
 
       <Filters
@@ -50,20 +49,20 @@ export default function Dashboard() {
       />
 
       {loading && <LoadingGrid />}
-      {!loading && error && <ErrorState message={error} onRetry={reload} />}
+      {!loading && error && <ErrorState error={error} onRetry={reload} />}
       {!loading && !error && visible.length === 0 && (
         <EmptyState
-          message={
-            (data?.models.length ?? 0) === 0
-              ? 'Ainda nao ha snapshots. Corre a recolha diaria para popular o painel.'
-              : 'Nenhum modelo corresponde a esta busca ou categoria.'
+          messageKey={
+            (data?.models.length ?? 0) === 0 ? 'state.empty_no_snapshots' : 'state.empty_no_match'
           }
         />
       )}
       {!loading && !error && visible.length > 0 && (
         <>
           <p aria-live="polite" className="font-mono text-[11px] text-muted">
-            {visible.length} modelo{visible.length === 1 ? '' : 's'}
+            {t(visible.length === 1 ? 'count.models.one' : 'count.models.other', {
+              n: visible.length,
+            })}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((model) => (

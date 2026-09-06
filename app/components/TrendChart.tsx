@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslation } from '@/lib/i18n';
 import type { HistoryPoint } from '@/lib/types';
 
 const WIDTH = 320;
@@ -27,15 +30,12 @@ function toPath(values: (number | null)[]): string | null {
 }
 
 export function TrendChart({ history }: { history: HistoryPoint[] }) {
+  const { t } = useTranslation();
   const demand = toPath(history.map((point) => point.demand_raw));
   const competition = toPath(history.map((point) => point.competition_raw));
 
   if (!demand && !competition) {
-    return (
-      <p className="py-10 text-center text-sm text-muted">
-        Ainda sem historico suficiente. A recolha diaria acumula um ponto por dia.
-      </p>
-    );
+    return <p className="py-10 text-center text-sm text-muted">{t('chart.no_history')}</p>;
   }
 
   return (
@@ -44,7 +44,7 @@ export function TrendChart({ history }: { history: HistoryPoint[] }) {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="h-auto w-full"
         role="img"
-        aria-label={`Evolucao de procura e concorrencia ao longo de ${history.length} dias`}
+        aria-label={t('chart.aria', { days: history.length })}
       >
         {demand && <path d={demand} fill="none" stroke="#22d3a5" strokeWidth="2" />}
         {competition && (
@@ -58,9 +58,9 @@ export function TrendChart({ history }: { history: HistoryPoint[] }) {
         )}
       </svg>
       <figcaption className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-muted">
-        <span className="text-open">— procura</span>
-        <span className="text-tight">--- concorrencia</span>
-        <span>escalas independentes</span>
+        <span className="text-open">{t('chart.legend_demand')}</span>
+        <span className="text-tight">{t('chart.legend_competition')}</span>
+        <span>{t('chart.legend_independent_scales')}</span>
       </figcaption>
     </figure>
   );

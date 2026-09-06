@@ -1,10 +1,14 @@
+'use client';
+
 import Link from 'next/link';
 
 import { ScoreGauge } from '@/components/ScoreGauge';
-import { TONE_LABEL, TONE_TEXT, formatNumber, toneOf } from '@/lib/score';
+import { categoryLabel, keywordLabel, useTranslation } from '@/lib/i18n';
+import { TONE_TEXT, formatNumber, toneOf } from '@/lib/score';
 import type { ModelSummary } from '@/lib/types';
 
 export function ModelCard({ model }: { model: ModelSummary }) {
+  const { t, locale } = useTranslation();
   const tone = toneOf(model.score);
 
   return (
@@ -15,22 +19,24 @@ export function ModelCard({ model }: { model: ModelSummary }) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-medium text-slate-100">{model.name}</h2>
-          <p className="mt-1 truncate font-mono text-xs text-muted">{model.keyword}</p>
+          <p className="mt-1 truncate font-mono text-xs text-muted">
+            {keywordLabel(locale, model.keyword)}
+          </p>
         </div>
         <ScoreGauge score={model.score} />
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="chip">{model.category}</span>
+        <span className="chip">{categoryLabel(locale, model.category)}</span>
         <span className={`font-mono text-[11px] uppercase tracking-wider ${TONE_TEXT[tone]}`}>
-          {TONE_LABEL[tone]}
+          {t(`tone.${tone}`)}
         </span>
       </div>
 
       <dl className="grid grid-cols-3 gap-2 border-t border-edge/70 pt-3 font-mono text-[11px]">
-        <Metric label="procura" value={formatNumber(model.demand_norm)} />
-        <Metric label="concorr." value={formatNumber(model.competition_norm)} />
-        <Metric label="gap" value={formatNumber(model.components.gap)} />
+        <Metric label={t('metric.demand')} value={formatNumber(model.demand_norm)} />
+        <Metric label={t('metric.competition')} value={formatNumber(model.competition_norm)} />
+        <Metric label={t('metric.gap')} value={formatNumber(model.components.gap)} />
       </dl>
     </Link>
   );
