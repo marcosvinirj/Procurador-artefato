@@ -3,13 +3,23 @@
 -- para recalibrar pesos sem migracao.
 
 create table if not exists models (
-  id         uuid primary key default gen_random_uuid(),
-  name       text not null,
-  category   text not null,
-  keyword    text not null unique,          -- termo canonico de mercado
-  synonyms   text[] not null default '{}',  -- variacoes, p/ nao subestimar o mercado
-  created_at timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  name             text not null,
+  category         text not null,
+  keyword          text not null unique,          -- termo canonico de mercado
+  synonyms         text[] not null default '{}',  -- variacoes, p/ nao subestimar o mercado
+  status           text not null default 'active',-- active | pending | rejected | archived
+  source           text,                          -- null = seed manual; senao, o conector que propos
+  low_score_streak int not null default 0,        -- dias seguidos saturado; zera ao recuperar
+  created_at       timestamptz not null default now()
 );
+
+-- Migracao: se a tabela ja existia (deploy anterior), acrescenta as colunas
+-- que faltam. Idempotente — seguro correr este ficheiro inteiro outra vez.
+alter table models add column if not exists status text not null default 'active';
+alter table models add column if not exists source text;
+alter table models add column if not exists low_score_streak int not null default 0;
+create index if not exists models_status_idx on models (status);
 
 create table if not exists snapshots (
   id              uuid primary key default gen_random_uuid(),

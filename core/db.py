@@ -12,6 +12,10 @@ from supabase import Client, create_client
 from core.scoring import Model, Snapshot
 
 HISTORY_DAYS = 30
+ACTIVE = "active"      # visivel publicamente, tracked normalmente
+PENDING = "pending"    # descoberto, a espera de revisao humana
+REJECTED = "rejected"  # revisto e recusado; guardado so para nao sugerir de novo
+ARCHIVED = "archived"  # foi active, saturou por dias seguidos; reativa-se sozinho
 
 
 @lru_cache(maxsize=1)
@@ -37,16 +41,20 @@ def _to_model(row: dict[str, Any], snapshots: Sequence[Snapshot]) -> Model:
     )
 
 
-def fetch_model_rows(category: str | None = None) -> list[dict[str, Any]]:
+def fetch_model_rows(category: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+    """`status=None` devolve todos os estados — usado pelo cron, que tem de dar
+    sinal aos candidatos pendentes tambem, para ja terem dados quando forem revistos."""
     query = client().table("models").select("*").order("name")
     if category:
         query = query.eq("category", category)  # parametrizado pelo cliente, nunca concatenado
+    if status:
+        query = query.eq("status", status)
     return query.execute().data or []
 
 
-def load_models(category: str | None = None, days: int = HISTORY_DAYS) -> list[Model]:
+def load_models(category: str | None = None, days: int = HISTORY_DAYS, status: str | None = ACTIVE) -> list[Model]:
     """Modelos com o historico recente ja agrupado, prontos para score_models."""
-    rows = fetch_model_rows(category)
+    rows = fetch_model_rows(category, status)
     if not rows:
         return []
     since = (date.today() - timedelta(days=days)).isoformat()
@@ -79,3 +87,18 @@ def save_snapshots(rows: Sequence[dict[str, Any]]) -> int:
         return 0
     client().table("snapshots").upsert(list(rows), on_conflict="model_id,day").execute()
     return len(rows)
+
+
+def insert_candidates(rows: Sequence[dict[str, Any]]) -> int:
+    """Propostas da descoberta. `keyword` e unique: um termo ja conhecido (em
+    qualquer estado) nunca duplica, mesmo que a descoberta o encontre outra vez."""
+    if not rows:
+        return 0
+    client().table("models").upsert(list(rows), on_conflict="keyword", ignore_duplicates=True).execute()
+    return len(rows)
+
+
+def update_model(model_id: str, **fields: Any) -> None:
+    """Update pontual — aprovar/rejeitar candidato, ou o arquivamento automatico."""
+    if fields:
+        client().table("models").update(fields).eq("id", model_id).execute()

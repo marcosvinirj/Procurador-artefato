@@ -22,6 +22,9 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
    componente e redistribuido pelos restantes (`core/scoring._weighted`).
 6. **O score nao se grava.** Calcula-se na leitura, para recalibrar sem migracao.
 7. **Minimo de linhas.** A solucao mais pequena que esta correta ganha.
+8. **Descoberta nunca publica sozinha.** Um candidato entra como `pending` e so
+   fica visivel em `/api/models` depois de aprovado em `/api/candidates`
+   (ver secao "Ciclo de vida"). Evita o site encher-se de lixo sem controlo.
 
 ## Comandos
 
@@ -38,27 +41,55 @@ python -m pytest tests -q           # testes do scoring
 
 # Disparar a recolha a mao
 curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/collect
+
+# Propor candidatos novos (Google Trends, a partir dos modelos ativos)
+curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/discover
+
+# Rever candidatos pendentes (aprovar/rejeitar), interativo, so local
+TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candidates.py
 ```
 
 ## Configuracao manual (uma vez, no painel)
 
 1. **Supabase** → SQL Editor → correr `supabase/schema.sql` (tabelas + seed + RLS).
+   Ficheiro idempotente: correr outra vez depois de uma alteracao (ex: as
+   colunas `status`/`source`/`low_score_streak`) so acrescenta o que falta.
 2. **Vercel** → Settings → Environment Variables: `SUPABASE_URL`,
-   `SUPABASE_SERVICE_KEY`, `CRON_SECRET` e, opcionalmente, `ETSY_API_KEY`.
+   `SUPABASE_SERVICE_KEY`, `CRON_SECRET` e, opcionalmente, `ETSY_API_KEY` e o
+   par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
-3. O cron (`0 3 * * *`, sempre UTC) vem de `vercel.json`. No plano Hobby corre
-   **uma vez por dia**, com ~10s de timeout — a unica execucao diaria tem de
-   cobrir o seed todo. Por isso os conectores correm em paralelo (I/O puro) e,
-   se o orcamento esgotar, a resposta traz `next_offset` para retomar sem perder
-   modelos. O upsert e idempotente: repetir uma fatia nao duplica nada.
+3. Dois crons em `vercel.json`, sempre UTC: `/api/collect` as 3h, `/api/discover`
+   as 5h. No plano Hobby cada um corre **uma vez por dia**, com ~10s de timeout
+   — por isso os conectores de collect vao em paralelo (I/O puro) e o discover
+   processa uma fatia pequena de sementes por vez; se o orcamento esgotar,
+   `next_offset` retoma sem perder nada. O upsert e idempotente: repetir uma
+   fatia nao duplica. (Se a conta nao aceitar dois crons no Hobby, o segundo
+   ainda pode ser disparado a mao, com a mesma cadencia, via curl ou um cron
+   externo tipo cron-job.org apontado a `/api/discover` com o `CRON_SECRET`.)
+
+## Ciclo de vida de um modelo
+
+`models.status`: `active` (visivel, tracked) → `pending` (descoberto, a espera
+de revisao) → `active` ou `rejected` (decisao humana) → `active` pode virar
+`archived` sozinho se saturar (`core/lifecycle.py`) e voltar a `active` sozinho
+se recuperar. Nunca se apaga uma linha: `archived` so deixa de aparecer no
+ranking publico, o historico fica intacto e o link direto ainda abre.
+
+A regra de arquivamento e sequencial, nao de um dia isolado: precisa de 5 dias
+**seguidos** saturado (score < 45) para arquivar, e 5 dias seguidos recuperado
+para reativar — um unico dia ruidoso (a Etsy falhou, o Trends bloqueou) nao
+pode arquivar nada sozinho. Corre automaticamente no fim de cada `/api/collect`
+completo (`_apply_lifecycle` em `api/index.py`).
 
 ## Onde mexer
 
 | Quero… | Ficheiro |
 |---|---|
 | mudar pesos ou a formula | `core/scoring.py` + `.claude/skills/scoring/SKILL.md` |
-| adicionar uma fonte de dados | `.claude/agents/data-source.md` (subagente) |
+| adicionar uma fonte de dados (sinal de um modelo existente) | `.claude/agents/data-source.md` (subagente) |
+| adicionar uma fonte de descoberta (candidatos novos) | `core/discovery.py` |
+| mudar a regra de arquivamento (dias, limiar) | `core/lifecycle.py` — `DEFAULT_THRESHOLD_DAYS`, `SATURATED_THRESHOLD` em `core/scoring.py` |
 | adicionar uma rota | `api/index.py` — um so `FastAPI()` |
 | mexer no visual | `app/components/` |
 
@@ -67,5 +98,6 @@ curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/collect
 | Sinal | Fonte | Estado |
 |---|---|---|
 | concorrencia + margem | Etsy API v3 (`listings/active`) | real, exige `ETSY_API_KEY` |
+| concorrencia + margem (fallback) | eBay Browse API (`item_summary/search`) | real, exige `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET` |
 | direcao da procura | Google Trends (endpoint publico) | real, sem chave, pode ser bloqueado |
 | procura de compra | ritmo de reviews no topo | **stub** — `review_velocity` devolve `None` |

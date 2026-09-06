@@ -1,7 +1,10 @@
 export type Tone = 'open' | 'mid' | 'tight';
 
 /** Limiares de decisao: acima de 65 vale a pena imprimir, abaixo de 45 o mercado ja fechou.
- *  Os textos e traducoes de cada tom vivem em i18n.tsx (chave `tone.${tone}`). */
+ *  Os textos e traducoes de cada tom vivem em i18n.tsx (chave `tone.${tone}`).
+ *  Espelham OPEN_THRESHOLD/SATURATED_THRESHOLD em core/scoring.py (Python) —
+ *  os dois ficheiros nao partilham codigo, mudar um sem o outro desalinha o
+ *  que se ve aqui do que o arquivamento automatico decide no backend. */
 export function toneOf(score: number): Tone {
   if (score >= 65) return 'open';
   return score >= 45 ? 'mid' : 'tight';

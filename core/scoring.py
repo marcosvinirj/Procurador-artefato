@@ -21,6 +21,17 @@ TREND_WINDOW_DAYS = 7
 TREND_CLAMP = 1.0
 NEUTRAL = 50.0
 
+# Limiares de leitura do score — espelham toneOf() em app/lib/score.ts.
+# Os dois ficheiros nao partilham codigo (Python/TypeScript), por isso mudar
+# um sem mudar o outro desalinha o que o utilizador ve do que core/lifecycle.py
+# decide arquivar automaticamente. Mudar os dois juntos, sempre.
+OPEN_THRESHOLD = 65.0
+SATURATED_THRESHOLD = 45.0
+
+
+def is_saturated(score: float) -> bool:
+    return score < SATURATED_THRESHOLD
+
 
 @dataclass(frozen=True)
 class Snapshot:
