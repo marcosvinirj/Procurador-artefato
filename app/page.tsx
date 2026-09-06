@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Filters } from '@/components/Filters';
 import { ModelCard } from '@/components/ModelCard';
 import { EmptyState, ErrorState, LoadingGrid } from '@/components/StateView';
+import { StatusNotice } from '@/components/StatusNotice';
 import { useJson } from '@/lib/api';
 import { nameLabel, useTranslation, type Locale } from '@/lib/i18n';
 import type { ModelSummary, ModelsResponse } from '@/lib/types';
@@ -50,6 +51,8 @@ export default function Dashboard() {
         active={category}
         onCategory={setCategory}
       />
+
+      {!loading && !error && data && <StatusNotice models={data.models} />}
 
       {loading && <LoadingGrid />}
       {!loading && error && <ErrorState error={error} onRetry={reload} />}
