@@ -24,8 +24,10 @@ log = logging.getLogger("trendprint")
 # dispara 1x/dia, por isso uma unica execucao tem de cobrir o seed inteiro. Em
 # serie nao cabia: os conectores sao I/O puro, logo vao em paralelo. Se ainda
 # assim o orcamento esgotar, devolve next_offset e a fatia seguinte fica para
-# uma chamada posterior.
-COLLECT_BUDGET_SECONDS = 7.5
+# uma chamada posterior. 6.0s (nao 7.5s) porque sobra trabalho depois do loop
+# que nao tinha orcamento proprio: _apply_lifecycle le e escreve na BD, e ja
+# causou um timeout real de 10s com essa margem mais folgada.
+COLLECT_BUDGET_SECONDS = 6.0
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
 LIST_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=600"
@@ -158,8 +160,9 @@ def _apply_lifecycle() -> int:
     streaks = {rid: rows[rid].get("low_score_streak", 0) for rid in relevant_ids}
 
     changes = lifecycle.decide(scores, statuses, streaks)
-    for change in changes:
-        db.update_model(change.model_id, status=change.status, low_score_streak=change.low_score_streak)
+    db.apply_lifecycle_changes(
+        [{"id": c.model_id, "status": c.status, "low_score_streak": c.low_score_streak} for c in changes]
+    )
     return len(changes)
 
 

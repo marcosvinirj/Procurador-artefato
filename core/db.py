@@ -99,6 +99,21 @@ def insert_candidates(rows: Sequence[dict[str, Any]]) -> int:
 
 
 def update_model(model_id: str, **fields: Any) -> None:
-    """Update pontual — aprovar/rejeitar candidato, ou o arquivamento automatico."""
+    """Update pontual — aprovar/rejeitar um candidato (um de cada vez, na revisao humana)."""
     if fields:
         client().table("models").update(fields).eq("id", model_id).execute()
+
+
+def apply_lifecycle_changes(changes: Sequence[dict[str, Any]]) -> None:
+    """Grava as mudancas de arquivamento/reativacao todas de uma vez.
+
+    O arquivamento automatico pode mexer em varios modelos no mesmo dia (ex:
+    a Etsy ligou e o gap mudou tudo de uma vez). Escrever um a um, em serie,
+    ja causou um timeout real no /api/collect com poucas dezenas de mudancas —
+    cada update() e um pedido de rede a parte. Um so upsert e um pedido so,
+    independente de quantos modelos mudaram.
+    """
+    if not changes:
+        return
+    rows = [{"id": c["id"], "status": c["status"], "low_score_streak": c["low_score_streak"]} for c in changes]
+    client().table("models").upsert(rows, on_conflict="id").execute()
