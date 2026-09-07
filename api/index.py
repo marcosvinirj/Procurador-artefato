@@ -11,6 +11,7 @@ from datetime import date
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
+import httpx
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -313,6 +314,34 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
         fields["category"] = body.category
     db.update_model(target, **fields)
     return {"id": target, "status": db.ACTIVE}
+
+
+@app.get("/api/debug/etsy", dependencies=[Depends(require_cron)])
+def debug_etsy() -> dict[str, Any]:
+    """Diagnostico temporario para confirmar porque a Etsy continua a devolver
+    None mesmo com a app aprovada. So expoe o codigo e a mensagem PUBLICA que a
+    propria Etsy devolve — nunca a nossa chave. Remover depois de resolvido."""
+    key = os.environ.get("ETSY_API_KEY")
+    if not key:
+        return {"configured": False}
+
+    with sources.http_client() as client:
+        try:
+            response = client.get(
+                sources.ETSY_ENDPOINT,
+                params={"keywords": "jar opener", "limit": 5, "sort_on": "score"},
+                headers={"x-api-key": key},
+            )
+        except httpx.HTTPError as exc:
+            return {"configured": True, "network_error": str(exc)}
+
+    return {
+        "configured": True,
+        "key_length": len(key),
+        "key_has_colon": ":" in key,
+        "status_code": response.status_code,
+        "body": response.text[:500],
+    }
 
 
 @app.middleware("http")
