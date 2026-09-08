@@ -105,15 +105,21 @@ def update_model(model_id: str, **fields: Any) -> None:
 
 
 def apply_lifecycle_changes(changes: Sequence[dict[str, Any]]) -> None:
-    """Grava as mudancas de arquivamento/reativacao todas de uma vez.
+    """Grava as mudancas de arquivamento/reativacao agrupadas por estado final.
 
-    O arquivamento automatico pode mexer em varios modelos no mesmo dia (ex:
-    a Etsy ligou e o gap mudou tudo de uma vez). Escrever um a um, em serie,
-    ja causou um timeout real no /api/collect com poucas dezenas de mudancas —
-    cada update() e um pedido de rede a parte. Um so upsert e um pedido so,
-    independente de quantos modelos mudaram.
+    Um update() por modelo ja causou um timeout real (dezenas de pedidos em
+    serie). Um upsert com so (id, status, streak) tambem nao serve: o PostgREST
+    trata-o como INSERT e deixa name/category/keyword a null, violando os NOT
+    NULL — outro 500 real. A saida e agrupar: a politica so produz um punhado
+    de combinacoes distintas de (status, streak), nao uma por modelo, por isso
+    um UPDATE por combinacao com `in_(ids)` fica em poucos pedidos e e um
+    UPDATE mesmo, sem tentar inserir nada.
     """
     if not changes:
         return
-    rows = [{"id": c["id"], "status": c["status"], "low_score_streak": c["low_score_streak"]} for c in changes]
-    client().table("models").upsert(rows, on_conflict="id").execute()
+    grouped: dict[tuple[str, int], list[str]] = {}
+    for change in changes:
+        grouped.setdefault((change["status"], change["low_score_streak"]), []).append(change["id"])
+
+    for (status, streak), ids in grouped.items():
+        client().table("models").update({"status": status, "low_score_streak": streak}).in_("id", ids).execute()

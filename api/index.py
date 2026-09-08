@@ -207,37 +207,14 @@ def collect(
         pool.shutdown(wait=False, cancel_futures=True)
         client.close()
 
-    # TEMPORARIO: isola cada fase para descobrir qual esta a levantar o 500.
-    # Remover assim que a causa estiver corrigida.
-    import traceback
-
-    try:
-        saved = db.save_snapshots(snapshots)
-    except Exception as exc:
-        return {
-            "fase": "save_snapshots",
-            "erro": type(exc).__name__,
-            "mensagem": str(exc)[:500],
-            "traceback": traceback.format_exc()[-1500:],
-            "amostra_snapshot": snapshots[0] if snapshots else None,
-        }
-
+    saved = db.save_snapshots(snapshots)
     # Sobra trabalho se o orcamento cortou a fatia a meio, ou se a fatia veio cheia.
     incomplete = processed < len(rows) or len(rows) == limit
     next_offset = offset + processed if incomplete else None
 
     # So arquiva/reativa quando a passagem de hoje estiver completa — julgar a
     # meio de uma fatia misturaria snapshots de hoje com os de ontem.
-    try:
-        lifecycle_changes = _apply_lifecycle() if next_offset is None else 0
-    except Exception as exc:
-        return {
-            "fase": "apply_lifecycle",
-            "erro": type(exc).__name__,
-            "mensagem": str(exc)[:500],
-            "traceback": traceback.format_exc()[-1500:],
-            "saved": saved,
-        }
+    lifecycle_changes = _apply_lifecycle() if next_offset is None else 0
 
     return {
         "day": today,
@@ -339,30 +316,6 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
         fields["category"] = body.category
     db.update_model(target, **fields)
     return {"id": target, "status": db.ACTIVE}
-
-
-@app.get("/api/debug/collect-one", dependencies=[Depends(require_cron)])
-def debug_collect_one() -> dict[str, Any]:
-    """Diagnostico temporario: corre sources.collect() para um modelo real,
-    isolando qualquer excecao para ver o tipo/mensagem/traceback. Nunca expoe
-    chaves — so erros Python. Remover depois de resolvido."""
-    import traceback
-
-    rows = db.fetch_model_rows(status=db.ACTIVE)
-    if not rows:
-        return {"error": "sem modelos ativos"}
-    row = rows[0]
-    with sources.http_client() as client:
-        try:
-            signal = sources.collect(row, client)
-            return {"model": row["name"], "signal": signal.__dict__, "error": None}
-        except Exception as exc:  # so aqui, so para diagnostico
-            return {
-                "model": row["name"],
-                "error_type": type(exc).__name__,
-                "error_message": str(exc),
-                "traceback": traceback.format_exc()[-2000:],
-            }
 
 
 @app.middleware("http")
