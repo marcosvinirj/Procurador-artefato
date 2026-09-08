@@ -207,14 +207,37 @@ def collect(
         pool.shutdown(wait=False, cancel_futures=True)
         client.close()
 
-    saved = db.save_snapshots(snapshots)
+    # TEMPORARIO: isola cada fase para descobrir qual esta a levantar o 500.
+    # Remover assim que a causa estiver corrigida.
+    import traceback
+
+    try:
+        saved = db.save_snapshots(snapshots)
+    except Exception as exc:
+        return {
+            "fase": "save_snapshots",
+            "erro": type(exc).__name__,
+            "mensagem": str(exc)[:500],
+            "traceback": traceback.format_exc()[-1500:],
+            "amostra_snapshot": snapshots[0] if snapshots else None,
+        }
+
     # Sobra trabalho se o orcamento cortou a fatia a meio, ou se a fatia veio cheia.
     incomplete = processed < len(rows) or len(rows) == limit
     next_offset = offset + processed if incomplete else None
 
     # So arquiva/reativa quando a passagem de hoje estiver completa — julgar a
     # meio de uma fatia misturaria snapshots de hoje com os de ontem.
-    lifecycle_changes = _apply_lifecycle() if next_offset is None else 0
+    try:
+        lifecycle_changes = _apply_lifecycle() if next_offset is None else 0
+    except Exception as exc:
+        return {
+            "fase": "apply_lifecycle",
+            "erro": type(exc).__name__,
+            "mensagem": str(exc)[:500],
+            "traceback": traceback.format_exc()[-1500:],
+            "saved": saved,
+        }
 
     return {
         "day": today,
