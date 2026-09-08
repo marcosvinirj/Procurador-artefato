@@ -264,8 +264,15 @@ def youtube_interest(client: httpx.Client, terms: Sequence[str]) -> float | None
             params={"part": "statistics", "id": ",".join(video_ids), "key": key},
         )
         videos.raise_for_status()
-        views = [int(v["statistics"].get("viewCount", 0)) for v in videos.json().get("items", [])]
-    except (httpx.HTTPError, ValueError, KeyError):
+        views = []
+        for item in videos.json().get("items", []):
+            # viewCount pode faltar ou vir null (criador esconde a contagem);
+            # um video assim conta 0, nao derruba a soma dos outros.
+            try:
+                views.append(int(item["statistics"]["viewCount"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
         return None
     return float(sum(views))
 
