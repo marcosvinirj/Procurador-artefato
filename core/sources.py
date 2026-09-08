@@ -29,6 +29,8 @@ TRENDS_EXPLORE = "https://trends.google.com/trends/api/explore"
 TRENDS_TIMESERIES = "https://trends.google.com/trends/api/widgetdata/multiline"
 EBAY_TOKEN_ENDPOINT = "https://api.ebay.com/identity/v1/oauth2/token"
 EBAY_SEARCH_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+YOUTUBE_SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search"
+YOUTUBE_VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 
 
 @dataclass(frozen=True)
@@ -233,6 +235,41 @@ def google_trends_interest(client: httpx.Client, terms: Sequence[str]) -> float 
     return float(settled[-1]["value"][0])
 
 
+def youtube_interest(client: httpx.Client, terms: Sequence[str]) -> float | None:
+    """Soma das visualizacoes dos videos mais relevantes para o termo — proxy
+    de atencao real (quem ja gasta tempo a ver conteudo sobre isto), diferente
+    do Google Trends, que mede so intencao de pesquisa.
+
+    Requer YOUTUBE_API_KEY (YouTube Data API v3, gratuita, sem OAuth). So o
+    primeiro termo: a quota gratuita e 10 000 unidades/dia e uma busca
+    (search.list) custa 100 — nao da para gastar 2 por modelo em todos.
+    Zero videos encontrados e um dado real (0.0), nao ausencia de dado; falha
+    de rede ou de quota devolve None.
+    """
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key or not terms:
+        return None
+    try:
+        search = client.get(
+            YOUTUBE_SEARCH_ENDPOINT,
+            params={"part": "id", "q": terms[0], "type": "video", "maxResults": 5, "key": key},
+        )
+        search.raise_for_status()
+        video_ids = [item["id"]["videoId"] for item in search.json().get("items", [])]
+        if not video_ids:
+            return 0.0
+
+        videos = client.get(
+            YOUTUBE_VIDEOS_ENDPOINT,
+            params={"part": "statistics", "id": ",".join(video_ids), "key": key},
+        )
+        videos.raise_for_status()
+        views = [int(v["statistics"].get("viewCount", 0)) for v in videos.json().get("items", [])]
+    except (httpx.HTTPError, ValueError, KeyError):
+        return None
+    return float(sum(views))
+
+
 def review_velocity(client: httpx.Client, terms: Sequence[str]) -> float | None:
     """Procura de compra real: ritmo de avaliacoes novas nas listagens de topo.
 
@@ -254,6 +291,8 @@ def collect(model: dict[str, Any], client: httpx.Client) -> Signal:
     demand = review_velocity(client, terms)
     if demand is None:
         demand = google_trends_interest(client, terms)  # proxy enquanto o real nao liga
+    if demand is None:
+        demand = youtube_interest(client, terms)  # reserva quando o Trends falha/bloqueia
     return Signal(demand_raw=demand, competition_raw=competition, margin_est=margin)
 
 

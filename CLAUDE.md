@@ -55,8 +55,8 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    Ficheiro idempotente: correr outra vez depois de uma alteracao (ex: as
    colunas `status`/`source`/`low_score_streak`) so acrescenta o que falta.
 2. **Vercel** → Settings → Environment Variables: `SUPABASE_URL`,
-   `SUPABASE_SERVICE_KEY`, `CRON_SECRET` e, opcionalmente, `ETSY_API_KEY` e o
-   par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`.
+   `SUPABASE_SERVICE_KEY`, `CRON_SECRET` e, opcionalmente, `ETSY_API_KEY`, o
+   par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`, e `YOUTUBE_API_KEY`.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
 3. Dois crons em `vercel.json`, sempre UTC: `/api/collect` as 3h, `/api/discover`
@@ -100,4 +100,5 @@ completo (`_apply_lifecycle` em `api/index.py`).
 | concorrencia + margem | Etsy API v3 (`listings/active`) | real, exige `ETSY_API_KEY` |
 | concorrencia + margem (fallback) | eBay Browse API (`item_summary/search`) | real, exige `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET` |
 | direcao da procura | Google Trends (endpoint publico) | real, sem chave, pode ser bloqueado |
+| direcao da procura (fallback) | YouTube Data API v3 (visualizacoes) | real, exige `YOUTUBE_API_KEY`, quota gratuita 10k/dia |
 | procura de compra | ritmo de reviews no topo | **stub** — `review_velocity` devolve `None` |
