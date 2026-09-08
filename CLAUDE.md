@@ -42,6 +42,9 @@ python -m pytest tests -q           # testes do scoring
 # Disparar a recolha a mao
 curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/collect
 
+# Arquivar saturados / reativar recuperados
+curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/lifecycle
+
 # Propor candidatos novos (Google Trends, a partir dos modelos ativos)
 curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/discover
 
@@ -59,14 +62,15 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`, e `YOUTUBE_API_KEY`.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
-3. Dois crons em `vercel.json`, sempre UTC: `/api/collect` as 3h, `/api/discover`
-   as 5h. No plano Hobby cada um corre **uma vez por dia**, com ~10s de timeout
-   — por isso os conectores de collect vao em paralelo (I/O puro) e o discover
-   processa uma fatia pequena de sementes por vez; se o orcamento esgotar,
-   `next_offset` retoma sem perder nada. O upsert e idempotente: repetir uma
-   fatia nao duplica. (Se a conta nao aceitar dois crons no Hobby, o segundo
-   ainda pode ser disparado a mao, com a mesma cadencia, via curl ou um cron
-   externo tipo cron-job.org apontado a `/api/discover` com o `CRON_SECRET`.)
+3. Tres crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
+   `/api/lifecycle` as 4h, `/api/discover` as 5h. No plano Hobby cada um corre
+   **uma vez por dia**, com ~10s de timeout — por isso os conectores do collect
+   vao em paralelo (I/O puro) e o discover processa uma fatia pequena de
+   sementes por vez; se o orcamento esgotar, `next_offset` retoma sem perder
+   nada. O upsert e idempotente: repetir uma fatia nao duplica. (Se a conta nao
+   aceitar tres crons no Hobby, os que faltarem podem ser disparados a mao, com
+   a mesma cadencia, via curl ou um cron externo tipo cron-job.org apontado a
+   rota, com o `CRON_SECRET`.)
 
 ## Ciclo de vida de um modelo
 
@@ -79,8 +83,11 @@ ranking publico, o historico fica intacto e o link direto ainda abre.
 A regra de arquivamento e sequencial, nao de um dia isolado: precisa de 5 dias
 **seguidos** saturado (score < 45) para arquivar, e 5 dias seguidos recuperado
 para reativar — um unico dia ruidoso (a Etsy falhou, o Trends bloqueou) nao
-pode arquivar nada sozinho. Corre automaticamente no fim de cada `/api/collect`
-completo (`_apply_lifecycle` em `api/index.py`).
+pode arquivar nada sozinho. Corre no seu proprio cron (`/api/lifecycle`, 4h
+UTC), nao pendurado na recolha: quando ia no fim do `/api/collect`, so corria
+se a recolha tivesse terminado a lista toda — e com a lista a crescer isso
+deixou de acontecer (40 de 42 dentro do orcamento => arquivamento saltado
+todos os dias). Separado, tem os seus ~10s e nao depende disso.
 
 ## Onde mexer
 

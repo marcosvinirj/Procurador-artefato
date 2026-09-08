@@ -24,10 +24,9 @@ log = logging.getLogger("trendprint")
 # dispara 1x/dia, por isso uma unica execucao tem de cobrir o seed inteiro. Em
 # serie nao cabia: os conectores sao I/O puro, logo vao em paralelo. Se ainda
 # assim o orcamento esgotar, devolve next_offset e a fatia seguinte fica para
-# uma chamada posterior. 6.0s (nao 7.5s) porque sobra trabalho depois do loop
-# que nao tinha orcamento proprio: _apply_lifecycle le e escreve na BD, e ja
-# causou um timeout real de 10s com essa margem mais folgada.
-COLLECT_BUDGET_SECONDS = 6.0
+# uma chamada posterior. Voltou a 7.5s (de 6.0s) porque o arquivamento saiu
+# daqui para /api/lifecycle: depois do loop so sobra um save_snapshots.
+COLLECT_BUDGET_SECONDS = 7.5
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
 LIST_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=600"
@@ -210,19 +209,27 @@ def collect(
     saved = db.save_snapshots(snapshots)
     # Sobra trabalho se o orcamento cortou a fatia a meio, ou se a fatia veio cheia.
     incomplete = processed < len(rows) or len(rows) == limit
-    next_offset = offset + processed if incomplete else None
-
-    # So arquiva/reativa quando a passagem de hoje estiver completa — julgar a
-    # meio de uma fatia misturaria snapshots de hoje com os de ontem.
-    lifecycle_changes = _apply_lifecycle() if next_offset is None else 0
 
     return {
         "day": today,
         "processed": processed,
         "saved": saved,
-        "next_offset": next_offset,
-        "lifecycle_changes": lifecycle_changes,
+        "next_offset": offset + processed if incomplete else None,
     }
+
+
+@app.get("/api/lifecycle", dependencies=[Depends(require_cron)])
+def lifecycle_route() -> dict[str, Any]:
+    """Arquiva saturados e reativa recuperados. Rota propria, com cron proprio.
+
+    Antes corria pendurada no fim de /api/collect, e so quando a recolha
+    terminasse a lista toda — o que deixou de acontecer a medida que a lista
+    cresceu (40 de 42 dentro do orcamento => arquivamento saltado, todos os
+    dias). Separada, tem os seus ~10s inteiros e nao depende da recolha ter
+    acabado: le sempre o snapshot mais recente de cada modelo, seja de hoje ou
+    de ontem.
+    """
+    return {"lifecycle_changes": _apply_lifecycle()}
 
 
 @app.get("/api/discover", dependencies=[Depends(require_cron)])
@@ -321,7 +328,9 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
-    admin_route = request.url.path.startswith(("/api/collect", "/api/discover", "/api/candidates"))
+    admin_route = request.url.path.startswith(
+        ("/api/collect", "/api/discover", "/api/candidates", "/api/lifecycle")
+    )
     cacheable = response.status_code < 400 and not admin_route
     response.headers["Cache-Control"] = LIST_CACHE if cacheable else "no-store"
     return response
