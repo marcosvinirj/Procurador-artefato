@@ -10,6 +10,7 @@ Regras que qualquer conector novo tem de respeitar:
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 import time
@@ -236,9 +237,15 @@ def google_trends_interest(client: httpx.Client, terms: Sequence[str]) -> float 
 
 
 def youtube_interest(client: httpx.Client, terms: Sequence[str]) -> float | None:
-    """Soma das visualizacoes dos videos mais relevantes para o termo — proxy
-    de atencao real (quem ja gasta tempo a ver conteudo sobre isto), diferente
-    do Google Trends, que mede so intencao de pesquisa.
+    """Atencao no YouTube para o termo, mapeada para 0..100 — proxy de atencao
+    real (quem ja gasta tempo a ver conteudo sobre isto), diferente do Google
+    Trends, que mede so intencao de pesquisa.
+
+    O mapeamento logaritmico NAO e cosmetico: `demand_raw` e comparado por
+    percentil dentro da categoria, e o Trends vive em 0..100. Devolver
+    visualizacoes em bruto (milhoes) poria qualquer modelo que caisse nesta
+    reserva no topo da categoria so pela diferenca de unidade, nao por merito
+    — um numero errado, pior do que sinal nenhum. Ver _views_to_band.
 
     Requer YOUTUBE_API_KEY (YouTube Data API v3, gratuita, sem OAuth). So o
     primeiro termo: a quota gratuita e 10 000 unidades/dia e uma busca
@@ -274,7 +281,23 @@ def youtube_interest(client: httpx.Client, terms: Sequence[str]) -> float | None
                 continue
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         return None
-    return float(sum(views))
+    return _views_to_band(sum(views))
+
+
+# 10M visualizacoes somadas no top-5 = topo da banda. Logaritmico porque a
+# atencao no YouTube distribui-se por ordens de grandeza: a diferenca entre
+# 1k e 100k importa muito mais do que entre 5M e 5.1M.
+YOUTUBE_BAND_CEILING_LOG = 7.0  # log10(10_000_000)
+
+
+def _views_to_band(views: int) -> float:
+    """Visualizacoes -> 0..100, a mesma banda do Google Trends.
+
+    Aproximacao assumida: nao torna as duas fontes semanticamente iguais
+    (indice de interesse relativo vs. volume absoluto), so impede que a
+    diferenca de unidade decida sozinha o ranking.
+    """
+    return min(100.0, math.log10(views + 1) / YOUTUBE_BAND_CEILING_LOG * 100.0)
 
 
 def review_velocity(client: httpx.Client, terms: Sequence[str]) -> float | None:

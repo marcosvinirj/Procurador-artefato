@@ -35,7 +35,13 @@ de ~10s da funcao do cron, nao por design.
 
 ## Os passos
 
-1. **Procura** — sinal de compra do ultimo dia (`demand_raw`).
+1. **Procura** — sinal de compra do ultimo dia (`demand_raw`). **Todas as
+   fontes que alimentam este campo tem de devolver a mesma banda 0..100.**
+   Nao e cosmetica: o campo e comparado por percentil dentro da categoria, e
+   uma fonte que devolvesse outra unidade (ex: visualizacoes do YouTube, aos
+   milhoes) poria os seus modelos no topo so pela magnitude, nao por merito —
+   um numero errado, que e pior do que sinal nenhum. Ver
+   `core/sources._views_to_band`.
 2. **Direcao** — variacao vs. ~7 dias antes; sem historico, neutro (50).
    O crescimento e limitado a ±100%: acima disso e ruido de normalizacao da
    fonte, nao informacao de mercado.
