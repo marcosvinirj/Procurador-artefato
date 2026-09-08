@@ -318,6 +318,30 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
     return {"id": target, "status": db.ACTIVE}
 
 
+@app.get("/api/debug/collect-one", dependencies=[Depends(require_cron)])
+def debug_collect_one() -> dict[str, Any]:
+    """Diagnostico temporario: corre sources.collect() para um modelo real,
+    isolando qualquer excecao para ver o tipo/mensagem/traceback. Nunca expoe
+    chaves — so erros Python. Remover depois de resolvido."""
+    import traceback
+
+    rows = db.fetch_model_rows(status=db.ACTIVE)
+    if not rows:
+        return {"error": "sem modelos ativos"}
+    row = rows[0]
+    with sources.http_client() as client:
+        try:
+            signal = sources.collect(row, client)
+            return {"model": row["name"], "signal": signal.__dict__, "error": None}
+        except Exception as exc:  # so aqui, so para diagnostico
+            return {
+                "model": row["name"],
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "traceback": traceback.format_exc()[-2000:],
+            }
+
+
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
