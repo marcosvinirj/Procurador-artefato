@@ -325,53 +325,6 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
     return {"id": target, "status": db.ACTIVE}
 
 
-@app.get("/api/debug/collect-by-keyword", dependencies=[Depends(require_cron)])
-def debug_collect_by_keyword(keyword: Annotated[str, Query()]) -> dict[str, Any]:
-    """Diagnostico temporario: isola sources.collect() + a GRAVACAO para um
-    keyword especifico, e le de volta para confirmar que persistiu de verdade.
-    Nunca expoe chaves — so a linha da BD e o sinal. Remover depois de resolvido."""
-    row = next((r for r in db.fetch_model_rows() if r["keyword"] == keyword), None)
-    if row is None:
-        return {"error": "keyword nao encontrado"}
-    with sources.http_client() as client:
-        try:
-            signal = sources.collect(row, client)
-        except Exception as exc:
-            import traceback
-
-            return {"row": row, "error_type": type(exc).__name__, "traceback": traceback.format_exc()[-2000:]}
-
-    today = date.today().isoformat()
-    save_error = None
-    try:
-        db.save_snapshots(
-            [
-                {
-                    "model_id": row["id"],
-                    "day": today,
-                    "demand_raw": signal.demand_raw,
-                    "competition_raw": signal.competition_raw,
-                    "margin_est": signal.margin_est,
-                }
-            ]
-        )
-    except Exception as exc:
-        save_error = f"{type(exc).__name__}: {exc}"
-
-    persisted = next(
-        (m for m in db.load_models(status=None) if m.id == row["id"]),
-        None,
-    )
-    latest = max(persisted.snapshots, key=lambda s: s.day, default=None) if persisted else None
-
-    return {
-        "row_id": row["id"],
-        "signal": signal.__dict__,
-        "save_error": save_error,
-        "persisted_after_save": latest.__dict__ if latest else None,
-    }
-
-
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
