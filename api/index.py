@@ -325,6 +325,23 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
     return {"id": target, "status": db.ACTIVE}
 
 
+@app.get("/api/debug/collect-by-keyword", dependencies=[Depends(require_cron)])
+def debug_collect_by_keyword(keyword: Annotated[str, Query()]) -> dict[str, Any]:
+    """Diagnostico temporario: isola sources.collect() para um keyword especifico.
+    Nunca expoe chaves — so a linha da BD e o sinal resultante. Remover depois."""
+    row = next((r for r in db.fetch_model_rows() if r["keyword"] == keyword), None)
+    if row is None:
+        return {"error": "keyword nao encontrado"}
+    with sources.http_client() as client:
+        try:
+            signal = sources.collect(row, client)
+            return {"row": row, "signal": signal.__dict__, "error": None}
+        except Exception as exc:
+            import traceback
+
+            return {"row": row, "error_type": type(exc).__name__, "traceback": traceback.format_exc()[-2000:]}
+
+
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
