@@ -65,5 +65,18 @@ insert into models (name, category, keyword, synonyms) values
   ('Suporte de Comando',          'gadgets',    'controller holder',     '{"controller stand","gamepad holder"}'),
   ('Suporte de Portatil',         'gadgets',    'laptop stand',          '{"notebook riser","laptop riser"}'),
   ('Organizador de Secretaria',   'gadgets',    'desk organizer',        '{"desk tray","desktop organizer"}'),
-  ('Caixa para Auriculares',      'gadgets',    'earbud case',           '{"earbuds holder","airpods stand"}')
+  ('Caixa para Auriculares',      'gadgets',    'earbud case',           '{"earbuds holder","airpods stand"}'),
+  -- lote 2: pesquisado em 2026-09-13 (best-sellers reais de Etsy/MakerWorld/guias do setor)
+  ('Torre de Dados',                     'brinquedos', 'dice tower',             '{"dnd dice tower","dice tower rpg","tabletop dice tower"}'),
+  ('Cofre de Dados',                     'brinquedos', 'dice vault',             '{"dice storage box","polyhedral dice case"}'),
+  ('Fidget Clicker',                     'brinquedos', 'fidget clicker',         '{"pop it fidget","clicker toy","fidget popper"}'),
+  ('Busto Abstrato Geometrico',          'decoracao',  'abstract bust sculpture','{"modern face sculpture","geometric bust","abstract head sculpture"}'),
+  ('Isolante de Lata',                   'decoracao',  'can cooler',             '{"beverage insulator","koozie 3d printed","drink can holder"}'),
+  ('Vaso Geometrico',                    'decoracao',  'geometric planter',      '{"faceted plant pot","low poly planter","geometric plant pot"}'),
+  ('Suporte de Celular para Carro',      'gadgets',    'car phone mount',        '{"phone holder car","vent phone mount","car dashboard phone holder"}'),
+  ('Capa de Telemovel',                  'gadgets',    'phone case',             '{"custom phone case","printed phone cover","phone shell"}'),
+  ('Tigela para Animais',                'utilidades', 'pet bowl',               '{"dog food bowl","elevated pet feeder","cat food bowl"}'),
+  ('Coleira de Identificacao',           'utilidades', 'pet id tag',             '{"dog tag custom","cat name tag","pet name tag"}'),
+  ('Clipe de Prateleira de Frigorifico', 'utilidades', 'fridge shelf clip',      '{"refrigerator shelf bracket","fridge replacement clip","shelf support clip"}'),
+  ('Cortador de Biscoitos',              'utilidades', 'cookie cutter set',      '{"custom cookie cutter","3d printed cookie cutter","holiday cookie cutter"}')
 on conflict (keyword) do nothing;
