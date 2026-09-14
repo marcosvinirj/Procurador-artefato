@@ -123,3 +123,13 @@ def apply_lifecycle_changes(changes: Sequence[dict[str, Any]]) -> None:
 
     for (status, streak), ids in grouped.items():
         client().table("models").update({"status": status, "low_score_streak": streak}).in_("id", ids).execute()
+
+
+def is_paid(user_id: str) -> bool:
+    """Fail-closed: sem perfil, erro de rede ou tabela em falta => nao pago.
+    Um erro nosso nunca pode desbloquear conteudo pago."""
+    try:
+        rows = client().table("profiles").select("is_paid").eq("id", user_id).limit(1).execute().data or []
+    except Exception:
+        return False
+    return bool(rows) and rows[0].get("is_paid") is True

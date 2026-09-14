@@ -8,15 +8,19 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
 - **Python e o nucleo.** Toda a logica de dados, score e API vive em `core/` e `api/`.
 - FastAPI numa unica funcao (`api/index.py`), no runtime Python da Vercel.
 - Next.js (App Router) + Tailwind na raiz (`app/`), sem bibliotecas de componentes.
-- Supabase (Postgres) acedido so do servidor, com a service key.
+- Supabase (Postgres) acedido pelo servidor com a service key; o browser so usa o
+  Supabase Auth (anon key) para login.
 - Vercel Cron dispara a recolha diaria.
 
 ## Invariantes
 
 1. **Python e o nucleo.** Nada de reimplementar score ou acesso a dados no frontend.
-2. **O frontend so fala com a nossa API.** Nunca com o Supabase diretamente.
-3. **Segredos nunca chegam ao browser.** Sem `NEXT_PUBLIC_*` para chaves. A service
-   key ignora RLS: se vazar, e acesso total a base de dados.
+2. **O frontend so busca dados a nossa API.** Ao Supabase fala apenas para login e
+   sessao (`app/lib/supabase.ts`), nunca para ler ou escrever tabelas.
+3. **Segredos nunca chegam ao browser.** A service key ignora RLS — se vazar, e acesso
+   total a base de dados; so no servidor, nunca `NEXT_PUBLIC_*`. A unica chave no
+   browser e a anon key do Supabase, publica por desenho e usada so para login: com
+   RLS ligado e nenhuma politica para ela, nao le nem escreve nenhuma tabela.
 4. **`/api/collect` e protegida por `CRON_SECRET`**, comparado com `hmac.compare_digest`.
 5. **Sem dados inventados.** Um conector que falha devolve `None`; o peso desse
    componente e redistribuido pelos restantes (`core/scoring._weighted`).
@@ -25,6 +29,11 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
 8. **Descoberta nunca publica sozinha.** Um candidato entra como `pending` e so
    fica visivel em `/api/models` depois de aprovado em `/api/candidates`
    (ver secao "Ciclo de vida"). Evita o site encher-se de lixo sem controlo.
+9. **Pago decide-se no servidor, fail-closed.** `profiles.is_paid` so e escrito pela
+   service key (RLS sem politicas: o utilizador nao consegue marcar-se como pago).
+   Qualquer falha a validar a sessao conta como anonimo nao-pago (`core/auth.py`).
+   Resposta que depende de quem pede nunca vai para a cache da CDN
+   (`private, no-store` + `Vary: Authorization`, no middleware de `api/index.py`).
 
 ## Comandos
 
@@ -59,7 +68,9 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    colunas `status`/`source`/`low_score_streak`) so acrescenta o que falta.
 2. **Vercel** → Settings → Environment Variables: `SUPABASE_URL`,
    `SUPABASE_SERVICE_KEY`, `CRON_SECRET` e, opcionalmente, `ETSY_API_KEY`, o
-   par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`, e `YOUTUBE_API_KEY`.
+   par `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET`, e `YOUTUBE_API_KEY`. Para o login:
+   `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (a anon, nunca a
+   service). Sem elas o site funciona na mesma, so sem o botao de entrar.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
 3. Tres crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
@@ -71,6 +82,11 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    aceitar tres crons no Hobby, os que faltarem podem ser disparados a mao, com
    a mesma cadencia, via curl ou um cron externo tipo cron-job.org apontado a
    rota, com o `CRON_SECRET`.)
+4. **Supabase → Authentication → URL Configuration**: Site URL = dominio de
+   producao; Redirect URLs inclui `<dominio>/login` (e `http://localhost:3000/login`
+   em dev). Login por link magico com PKCE: o link tem de ser aberto no mesmo
+   navegador que o pediu. O SMTP gratuito do Supabase so manda poucos emails por
+   hora — para producao a serio, SMTP proprio (ex: Resend).
 
 ## Ciclo de vida de um modelo
 

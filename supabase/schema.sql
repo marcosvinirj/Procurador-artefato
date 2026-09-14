@@ -80,3 +80,42 @@ insert into models (name, category, keyword, synonyms) values
   ('Clipe de Prateleira de Frigorifico', 'utilidades', 'fridge shelf clip',      '{"refrigerator shelf bracket","fridge replacement clip","shelf support clip"}'),
   ('Cortador de Biscoitos',              'utilidades', 'cookie cutter set',      '{"custom cookie cutter","3d printed cookie cutter","holiday cookie cutter"}')
 on conflict (keyword) do nothing;
+
+-- Contas (paywall). O catalogo continua partilhado por todos; aqui so vive
+-- quem e cada utilizador e se pagou. is_paid NUNCA e escrito pelo cliente:
+-- RLS ligado sem nenhuma politica — so a service key (servidor) le e escreve.
+-- Se um utilizador pudesse editar o proprio perfil, marcava-se como pago.
+create table if not exists profiles (
+  id         uuid primary key references auth.users(id) on delete cascade,
+  email      text,
+  is_paid    boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table profiles enable row level security;
+
+-- Cria o perfil sozinho quando alguem se regista. security definer com
+-- search_path vazio: corre com permissoes proprias sem poder ser sequestrado
+-- por um objeto homonimo noutro schema.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, email) values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Quem se registou antes deste trigger existir tambem ganha perfil (nao pago).
+insert into public.profiles (id, email)
+select id, email from auth.users
+on conflict (id) do nothing;

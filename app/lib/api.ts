@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { supabase } from './supabase';
+
 export interface FetchError {
   kind: 'http' | 'network';
   status?: number;
@@ -14,10 +16,22 @@ export interface Async<T> {
   reload: () => void;
 }
 
+/** Anexa o token da sessao quando existe. Qualquer falha a le-lo conta como
+ *  anonimo: o login nunca pode impedir o catalogo de carregar. */
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const token = (await supabase?.auth.getSession())?.data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
+  const auth = await authHeader();
   let response: Response;
   try {
-    response = await fetch(path, { headers: { Accept: 'application/json' } });
+    response = await fetch(path, { headers: { Accept: 'application/json', ...auth } });
   } catch {
     throw { kind: 'network' } satisfies FetchError;
   }

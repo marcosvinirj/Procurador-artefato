@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { Header } from '@/components/Header';
+import { AuthProvider } from '@/lib/auth';
 import { LanguageProvider } from '@/lib/i18n';
 
 import './globals.css';
@@ -20,8 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" translate="no" className="notranslate">
       <body>
         <LanguageProvider>
-          <Header />
-          <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+          <AuthProvider>
+            <Header />
+            <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+          </AuthProvider>
         </LanguageProvider>
       </body>
     </html>

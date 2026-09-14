@@ -3,10 +3,12 @@
 import Link from 'next/link';
 
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
 
 export function Header() {
   const { t } = useTranslation();
+  const { available, session, signOut } = useAuth();
 
   return (
     <header className="border-b border-edge/80 bg-ink/70 backdrop-blur">
@@ -20,6 +22,24 @@ export function Header() {
         <div className="ml-auto flex items-center gap-3">
           <p className="hidden font-mono text-[11px] text-muted sm:block">{t('header.tagline')}</p>
           <LanguageSwitcher />
+          {available &&
+            (session ? (
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                title={session.user.email ?? undefined}
+                className="rounded-md border border-edge px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-slate-200 transition hover:border-tight hover:text-tight"
+              >
+                {t('header.sign_out')}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="rounded-md border border-open/60 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-open transition hover:bg-open/10"
+              >
+                {t('header.sign_in')}
+              </Link>
+            ))}
         </div>
       </div>
     </header>

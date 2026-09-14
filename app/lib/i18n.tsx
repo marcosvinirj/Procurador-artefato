@@ -12,6 +12,19 @@ const STORAGE_KEY = 'trendprint.locale';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'header.sign_in': 'Sign in',
+  'header.sign_out': 'Sign out',
+  'login.back': '← back to opportunities',
+  'login.title': 'Sign in',
+  'login.subtitle': "We'll email you a sign-in link. Open it in this same browser.",
+  'login.email_label': 'Email',
+  'login.submit': 'Send link',
+  'login.sending': 'Sending…',
+  'login.sent_title': 'Check your email',
+  'login.sent_body': 'We sent a sign-in link to {{email}}. It may take a minute to arrive.',
+  'login.error': "Couldn't send the link. Wait a few minutes and try again.",
+  'login.unavailable': "Sign-in isn't available yet.",
+  'login.signed_in_as': 'Signed in as {{email}}',
   'meta.title': 'TrendPrint — what to print to sell',
   'header.tagline': 'high demand · low competition',
   'header.language_label': 'Language',
@@ -65,6 +78,19 @@ const en: Dict = {
 };
 
 const pt: Dict = {
+  'header.sign_in': 'Entrar',
+  'header.sign_out': 'Sair',
+  'login.back': '← voltar às oportunidades',
+  'login.title': 'Entrar',
+  'login.subtitle': 'Enviamos um link de acesso para o teu email. Abre-o neste mesmo navegador.',
+  'login.email_label': 'Email',
+  'login.submit': 'Enviar link',
+  'login.sending': 'A enviar…',
+  'login.sent_title': 'Verifica o teu email',
+  'login.sent_body': 'Enviámos um link de acesso para {{email}}. Pode demorar um minuto a chegar.',
+  'login.error': 'Não foi possível enviar o link. Espera uns minutos e tenta de novo.',
+  'login.unavailable': 'O login ainda não está disponível.',
+  'login.signed_in_as': 'Sessão iniciada como {{email}}',
   'meta.title': 'TrendPrint — o que imprimir para vender',
   'header.tagline': 'procura alta · concorrência baixa',
   'header.language_label': 'Idioma',
@@ -118,6 +144,19 @@ const pt: Dict = {
 };
 
 const es: Dict = {
+  'header.sign_in': 'Entrar',
+  'header.sign_out': 'Salir',
+  'login.back': '← volver a las oportunidades',
+  'login.title': 'Iniciar sesión',
+  'login.subtitle': 'Te enviamos un enlace de acceso por correo. Ábrelo en este mismo navegador.',
+  'login.email_label': 'Correo electrónico',
+  'login.submit': 'Enviar enlace',
+  'login.sending': 'Enviando…',
+  'login.sent_title': 'Revisa tu correo',
+  'login.sent_body': 'Enviamos un enlace de acceso a {{email}}. Puede tardar un minuto en llegar.',
+  'login.error': 'No se pudo enviar el enlace. Espera unos minutos e inténtalo de nuevo.',
+  'login.unavailable': 'El inicio de sesión aún no está disponible.',
+  'login.signed_in_as': 'Sesión iniciada como {{email}}',
   'meta.title': 'TrendPrint — qué imprimir para vender',
   'header.tagline': 'alta demanda · baja competencia',
   'header.language_label': 'Idioma',

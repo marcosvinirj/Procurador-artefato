@@ -15,7 +15,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from core import db, discovery, lifecycle, sources
+from core import auth, db, discovery, lifecycle, sources
 from core.scoring import Scored, score_models
 
 log = logging.getLogger("trendprint")
@@ -325,12 +325,23 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
     return {"id": target, "status": db.ACTIVE}
 
 
+@app.get("/api/me")
+def me(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """Quem esta ligado e se pagou. So leitura: is_paid nunca vem do cliente."""
+    viewer = auth.viewer_from_authorization(authorization)
+    return {"authenticated": viewer.authenticated, "email": viewer.email, "is_paid": viewer.is_paid}
+
+
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
     admin_route = request.url.path.startswith(
         ("/api/collect", "/api/discover", "/api/candidates", "/api/lifecycle")
     )
-    cacheable = response.status_code < 400 and not admin_route
-    response.headers["Cache-Control"] = LIST_CACHE if cacheable else "no-store"
+    # Resposta que depende de quem pede nunca pode ir para a cache partilhada da
+    # CDN: seria servir a vista de um assinante pago a um visitante qualquer.
+    personal = "authorization" in request.headers or request.url.path == "/api/me"
+    cacheable = response.status_code < 400 and not admin_route and not personal
+    response.headers["Cache-Control"] = LIST_CACHE if cacheable else "private, no-store"
+    response.headers["Vary"] = "Authorization"
     return response
