@@ -6,18 +6,36 @@ import { TONE_HEX, toneOf } from '@/lib/score';
 const RADIUS = 42;
 const ARC = Math.PI * RADIUS;
 
-/** Medidor semicircular: a cor comunica a decisao antes de se ler o numero. */
-export function ScoreGauge({ score, large = false }: { score: number; large?: boolean }) {
+/** Medidor semicircular: a cor comunica a decisao antes de se ler o numero.
+ *  Com `range` (produto bloqueado no plano gratis) mostra so o troco do arco
+ *  entre os dois limites e a faixa em texto, nunca o score exato. */
+export function ScoreGauge({
+  score,
+  large = false,
+  range,
+}: {
+  score: number;
+  large?: boolean;
+  range?: [number, number];
+}) {
   const { t } = useTranslation();
   const tone = toneOf(score);
   const clamped = Math.max(0, Math.min(100, score));
+  const dash = range
+    ? { strokeDasharray: `${(ARC * (range[1] - range[0])) / 100} ${ARC}`, strokeDashoffset: (-ARC * range[0]) / 100 }
+    : { strokeDasharray: ARC, strokeDashoffset: ARC * (1 - clamped / 100) };
+  const label = range ? `${range[0]}–${range[1]}` : String(Math.round(score));
 
   return (
     <svg
       viewBox="0 0 100 58"
       className={large ? 'h-24 w-40' : 'h-14 w-24'}
       role="img"
-      aria-label={t('gauge.aria', { score: Math.round(score), tone: t(`tone.${tone}`) })}
+      aria-label={
+        range
+          ? t('gauge.aria_range', { low: range[0], high: range[1], tone: t(`tone.${tone}`) })
+          : t('gauge.aria', { score: Math.round(score), tone: t(`tone.${tone}`) })
+      }
     >
       <path
         d="M 8 50 A 42 42 0 0 1 92 50"
@@ -32,17 +50,16 @@ export function ScoreGauge({ score, large = false }: { score: number; large?: bo
         stroke={TONE_HEX[tone]}
         strokeWidth="8"
         strokeLinecap="round"
-        strokeDasharray={ARC}
-        strokeDashoffset={ARC * (1 - clamped / 100)}
+        {...dash}
       />
       <text
         x="50"
         y="47"
         textAnchor="middle"
         fill={TONE_HEX[tone]}
-        className={`font-mono font-semibold ${large ? 'text-[22px]' : 'text-[20px]'}`}
+        className={`font-mono font-semibold ${range ? 'text-[16px]' : large ? 'text-[22px]' : 'text-[20px]'}`}
       >
-        {Math.round(score)}
+        {label}
       </text>
     </svg>
   );

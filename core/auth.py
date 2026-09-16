@@ -22,6 +22,7 @@ class Viewer:
     user_id: str | None = None
     email: str | None = None
     is_paid: bool = False
+    is_admin: bool = False
 
     @property
     def authenticated(self) -> bool:
@@ -58,4 +59,5 @@ def viewer_from_authorization(authorization: str | None) -> Viewer:
     # o acesso exige um email valido, e so o link de confirmacao o prova.
     if not confirmed:
         return ANONYMOUS
-    return Viewer(user_id=user_id, email=email, is_paid=db.is_paid(user_id))
+    paid, admin = db.access(user_id)
+    return Viewer(user_id=user_id, email=email, is_paid=paid, is_admin=admin)

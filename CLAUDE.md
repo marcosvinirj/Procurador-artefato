@@ -22,6 +22,9 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
    browser e a anon key do Supabase, publica por desenho e usada so para login: com
    RLS ligado e nenhuma politica para ela, nao le nem escreve nenhuma tabela.
 4. **`/api/collect` e protegida por `CRON_SECRET`**, comparado com `hmac.compare_digest`.
+   A administracao (`/api/admin*`, `/api/candidates*`, pagina `/admin`) aceita o
+   `CRON_SECRET` ou uma conta com `profiles.is_admin` — que so se liga por SQL,
+   nunca pela API (nem um admin promove outro).
 5. **Sem dados inventados.** Um conector que falha devolve `None`; o peso desse
    componente e redistribuido pelos restantes (`core/scoring._weighted`).
 6. **O score nao se grava.** Calcula-se na leitura, para recalibrar sem migracao.
@@ -34,9 +37,10 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
    escrito pela service key (RLS sem politicas: ninguem se marca como pago).
    Qualquer falha a validar a sessao conta como anonimo (`core/auth.py`).
    O plano gratis ve os `FREE_PREVIEW` primeiros do ranking **global**, calculados
-   antes de busca/categoria (senao variar a busca revelava tudo); do resto so vai a
-   contagem por categoria, e o detalhe responde 403. Nunca mandar dados reais para
-   o browser "borrar". Nenhuma resposta da API vai para a cache da CDN
+   antes de busca/categoria (senao variar a busca revelava tudo); de cada um dos
+   outros so vai a categoria e a faixa larga do score (`SCORE_BANDS`), e o detalhe
+   responde 403. Nunca mandar dados reais para o browser "borrar".
+   Nenhuma resposta da API vai para a cache da CDN
    (`private, no-store` + `Vary: Authorization`, no middleware de `api/index.py`).
 
 ## Comandos
@@ -61,7 +65,8 @@ curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/lifecycle
 # Propor candidatos novos (Google Trends, a partir dos modelos ativos)
 curl -H "Authorization: Bearer $CRON_SECRET" localhost:8000/api/discover
 
-# Rever candidatos pendentes (aprovar/rejeitar), interativo, so local
+# Rever candidatos pendentes: no site, em /admin (conta com is_admin), ou pelo
+# script local, interativo
 TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candidates.py
 ```
 
@@ -98,7 +103,9 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    (~500 emails/dia). Com dominio, trocar para Resend. Um cadastro repetido de
    um email ja confirmado mostra sucesso mas nao envia nada (anti-enumeracao).
    Para testar o plano pago: Table Editor → `profiles` → `is_paid = true` na
-   propria linha.
+   propria linha (ou, sendo admin, no painel `/admin`).
+5. **Tornar-se admin** (uma vez, depois de criar conta no site): SQL Editor →
+   `update public.profiles set is_admin = true where email = '<o-teu-email>';`
 
 ## Ciclo de vida de um modelo
 
@@ -128,6 +135,7 @@ todos os dias). Separado, tem os seus ~10s e nao depende disso.
 | adicionar uma rota | `api/index.py` — um so `FastAPI()` |
 | mudar quantos produtos o plano gratis ve | `api/index.py` — `FREE_PREVIEW` |
 | login, cadastro, senha | `app/lib/auth.tsx` + `app/components/AuthForms.tsx` |
+| painel de admin | `app/components/AdminPanel.tsx` + rotas `/api/admin*` em `api/index.py` |
 | mexer no visual | `app/components/` |
 
 ## Estado das fontes

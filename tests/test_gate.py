@@ -55,7 +55,10 @@ def test_gratis_ve_so_o_topo_e_contagens(client):
     body = response.json()
     assert [m["id"] for m in body["models"]] == TOP
     assert body["plan"] == "free"
-    assert sum(body["locked"].values()) == len(LOCKED)
+    ranked = score_models(MODELS)
+    assert body["locked"] == [
+        {"category": s.model.category, "band": index._band(s.score)} for s in ranked if s.model.id not in TOP
+    ]
     assert body["categories"] == ["decor", "toys"]
     for hidden in LOCKED:  # nem nome, nem id, nem keyword do que esta bloqueado
         assert hidden.id not in response.text
@@ -73,7 +76,7 @@ def test_filtros_nao_revelam_bloqueados(client, query):
 def test_pago_ve_tudo(client):
     body = get(client, "/api/models", "paid").json()
     assert len(body["models"]) == len(MODELS)
-    assert body["locked"] == {}
+    assert body["locked"] == []
     assert body["plan"] == "paid"
 
 
@@ -92,3 +95,11 @@ def test_nada_vai_para_a_cache_partilhada(client):
         assert response.headers["cache-control"] == "private, no-store"
         assert response.headers["vary"] == "Authorization"
     assert client.get("/api/me").headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.parametrize(
+    "score,band",
+    [(100, [80, 100]), (80, [80, 100]), (79.9, [65, 79]), (65, [65, 79]), (64.9, [45, 64]), (45, [45, 64]), (44.9, [0, 44]), (0, [0, 44])],
+)
+def test_faixas_seguem_os_limiares_do_score(score, band):
+    assert index._band(score) == band

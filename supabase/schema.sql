@@ -93,6 +93,11 @@ create table if not exists profiles (
 );
 alter table profiles enable row level security;
 
+-- Administradores (painel /admin). Liga-se SO por SQL, nunca pelo site nem pela
+-- API — assim ninguem se promove a admin. Depois de criares conta no site:
+--   update public.profiles set is_admin = true where email = 'o-teu-email';
+alter table profiles add column if not exists is_admin boolean not null default false;
+
 -- Cria o perfil sozinho quando alguem se regista. security definer com
 -- search_path vazio: corre com permissoes proprias sem poder ser sequestrado
 -- por um objeto homonimo noutro schema.

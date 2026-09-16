@@ -8,7 +8,7 @@ import { useTranslation } from '@/lib/i18n';
 
 export function Header() {
   const { t } = useTranslation();
-  const { session, signOut } = useAuth();
+  const { session, signOut, isAdmin } = useAuth();
 
   return (
     <header className="border-b border-edge/80 bg-ink/70 backdrop-blur">
@@ -22,6 +22,14 @@ export function Header() {
         <div className="ml-auto flex items-center gap-3">
           <p className="hidden font-mono text-[11px] text-muted sm:block">{t('header.tagline')}</p>
           <LanguageSwitcher />
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-md border border-open/60 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-open transition hover:bg-open/10"
+            >
+              {t('header.admin')}
+            </Link>
+          )}
           {/* Sem sessao nao ha botao aqui: cada ecra sem login ja tem o seu "Entrar". */}
           {session && (
             <button

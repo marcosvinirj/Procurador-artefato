@@ -125,11 +125,23 @@ def apply_lifecycle_changes(changes: Sequence[dict[str, Any]]) -> None:
         client().table("models").update({"status": status, "low_score_streak": streak}).in_("id", ids).execute()
 
 
-def is_paid(user_id: str) -> bool:
-    """Fail-closed: sem perfil, erro de rede ou tabela em falta => nao pago.
-    Um erro nosso nunca pode desbloquear conteudo pago."""
+def access(user_id: str) -> tuple[bool, bool]:
+    """(pago, admin). Fail-closed: sem perfil, erro de rede ou tabela em falta
+    => (False, False) — um erro nosso nunca pode desbloquear nada. select("*")
+    de proposito: se a coluna is_admin ainda nao existir (SQL por correr), o
+    pago continua a funcionar em vez de a consulta inteira falhar."""
     try:
-        rows = client().table("profiles").select("is_paid").eq("id", user_id).limit(1).execute().data or []
+        rows = client().table("profiles").select("*").eq("id", user_id).limit(1).execute().data or []
     except Exception:
-        return False
-    return bool(rows) and rows[0].get("is_paid") is True
+        return False, False
+    row = rows[0] if rows else {}
+    return row.get("is_paid") is True, row.get("is_admin") is True
+
+
+def list_profiles() -> list[dict[str, Any]]:
+    return client().table("profiles").select("*").order("created_at", desc=True).execute().data or []
+
+
+def set_paid(user_id: str, paid: bool) -> bool:
+    """Liga/desliga o plano pago. False se o perfil nao existir."""
+    return bool(client().table("profiles").update({"is_paid": paid}).eq("id", user_id).execute().data)

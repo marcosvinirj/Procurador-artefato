@@ -14,7 +14,7 @@ from uuid import UUID
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 
 from core import auth, db, discovery, lifecycle, sources
 from core.scoring import Scored, score_models
@@ -31,6 +31,9 @@ COLLECT_BUDGET_SECONDS = 7.5
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
 FREE_PREVIEW = 2  # quantos do topo do ranking o plano gratis ve por inteiro
+# Faixas que o gratis ve nos bloqueados. Largas de proposito, e alinhadas com os
+# limiares de core/scoring (65 aberto, 45 saturado) para a cor nao mentir.
+SCORE_BANDS = ((80, 100), (65, 79), (45, 64), (0, 44))
 
 app = FastAPI(title="TrendPrint API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -53,6 +56,16 @@ def require_cron(authorization: Annotated[str | None, Header()] = None) -> None:
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
+def require_admin(authorization: Annotated[str | None, Header()] = None) -> None:
+    """Painel de admin e revisao de candidatos: o CRON_SECRET (script local) ou
+    a sessao de uma conta com is_admin — que so se liga por SQL, nunca pela API."""
+    secret = os.environ.get("CRON_SECRET")
+    if secret and authorization and hmac.compare_digest(authorization.encode(), f"Bearer {secret}".encode()):
+        return
+    if not auth.viewer_from_authorization(authorization).is_admin:
+        raise HTTPException(status_code=403, detail="admin_only")
+
+
 def require_viewer(authorization: Annotated[str | None, Header()] = None) -> auth.Viewer:
     """O catalogo inteiro exige conta com email confirmado — ate a parte gratis."""
     viewer = auth.viewer_from_authorization(authorization)
@@ -66,6 +79,10 @@ def _free_ids(ranked: list[Scored]) -> set[str]:
     Tem de ser calculado antes de qualquer filtro — se cada busca ou categoria
     tivesse o seu proprio "top", bastava variar a busca para ver tudo."""
     return {item.model.id for item in ranked[:FREE_PREVIEW]}
+
+
+def _band(score: float) -> list[int]:
+    return next([low, high] for low, high in SCORE_BANDS if score >= low)
 
 
 def _serialize(item: Scored) -> dict[str, Any]:
@@ -96,15 +113,20 @@ def list_models(
     category: Annotated[str | None, Query(max_length=40)] = None,
     q: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, Any]:
-    """Plano pago: tudo. Gratis: os FREE_PREVIEW do topo e, do resto, so
-    quantos ha por categoria — nenhum dado real sai daqui para ser borrado
-    no browser, onde qualquer um o leria."""
+    """Plano pago: tudo. Gratis: os FREE_PREVIEW do topo e, de cada um dos
+    outros, so a categoria e a faixa larga do score, na ordem do ranking — o
+    suficiente para despertar interesse. Nome, id e numeros nunca saem daqui
+    para ser "borrados" no browser, onde qualquer um os leria."""
     models = db.load_models(status=db.ACTIVE)
     ranked = score_models(models)
-    locked: Counter[str] = Counter()
+    locked: list[dict[str, Any]] = []
     if not viewer.is_paid:
         free = _free_ids(ranked)
-        locked.update(item.model.category for item in ranked if item.model.id not in free)
+        locked = [
+            {"category": item.model.category, "band": _band(item.score)}
+            for item in ranked
+            if item.model.id not in free
+        ]
         ranked = [item for item in ranked if item.model.id in free]
     if category:
         ranked = [item for item in ranked if item.model.category == category]
@@ -113,7 +135,7 @@ def list_models(
     return {
         "models": [_serialize(item) for item in ranked],
         "categories": sorted({m.category for m in models}),
-        "locked": dict(locked),
+        "locked": locked,
         "plan": "paid" if viewer.is_paid else "free",
     }
 
@@ -307,7 +329,7 @@ def discover(
     }
 
 
-@app.get("/api/candidates", dependencies=[Depends(require_cron)])
+@app.get("/api/candidates", dependencies=[Depends(require_admin)])
 def list_candidates() -> dict[str, Any]:
     """Candidatos pendentes com o sinal mais recente ja recolhido — numeros
     em bruto, nao o score normalizado (a pool de percentil e so dos ativos)."""
@@ -339,7 +361,7 @@ class ReviewBody(BaseModel):
     category: str | None = None
 
 
-@app.post("/api/candidates/{model_id}", dependencies=[Depends(require_cron)])
+@app.post("/api/candidates/{model_id}", dependencies=[Depends(require_admin)])
 def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBody, Body()]) -> dict[str, Any]:
     target = str(model_id)
     row = next((r for r in db.fetch_model_rows(status=db.PENDING) if r["id"] == target), None)
@@ -363,7 +385,42 @@ def review_candidate(model_id: Annotated[UUID, Path()], body: Annotated[ReviewBo
 def me(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
     """Quem esta ligado e se pagou. So leitura: is_paid nunca vem do cliente."""
     viewer = auth.viewer_from_authorization(authorization)
-    return {"authenticated": viewer.authenticated, "email": viewer.email, "is_paid": viewer.is_paid}
+    return {
+        "authenticated": viewer.authenticated,
+        "email": viewer.email,
+        "is_paid": viewer.is_paid,
+        "is_admin": viewer.is_admin,
+    }
+
+
+@app.get("/api/admin", dependencies=[Depends(require_admin)])
+def admin_overview() -> dict[str, Any]:
+    """Contas (com o plano) e quantos produtos ha em cada estado."""
+    return {
+        "users": [
+            {
+                "id": p["id"],
+                "email": p.get("email"),
+                "is_paid": p.get("is_paid") is True,
+                "is_admin": p.get("is_admin") is True,
+                "created_at": p.get("created_at"),
+            }
+            for p in db.list_profiles()
+        ],
+        "models": dict(Counter(row["status"] for row in db.fetch_model_rows())),
+    }
+
+
+class PlanBody(BaseModel):
+    # So o plano. is_admin fica de fora de proposito: nem um admin promove outro pela API.
+    is_paid: StrictBool
+
+
+@app.post("/api/admin/users/{user_id}", dependencies=[Depends(require_admin)])
+def set_user_plan(user_id: Annotated[UUID, Path()], body: Annotated[PlanBody, Body()]) -> dict[str, Any]:
+    if not db.set_paid(str(user_id), body.is_paid):
+        raise HTTPException(status_code=404, detail="not_found")
+    return {"id": str(user_id), "is_paid": body.is_paid}
 
 
 @app.middleware("http")

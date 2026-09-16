@@ -3,6 +3,7 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+import { getJson } from './api';
 import { supabase } from './supabase';
 
 /** O erro vai como codigo do Supabase (traduzido no ecra), nunca como a
@@ -47,6 +48,8 @@ interface AuthValue extends Readonly<typeof actions> {
   /** false ate se saber se ha sessao: evita mostrar as boas-vindas a quem ja entrou. */
   ready: boolean;
   session: Session | null;
+  /** So decide se o link "Admin" aparece; quem manda e o servidor, a cada pedido. */
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -67,9 +70,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const userId = session?.user.id;
+  useEffect(() => {
+    setIsAdmin(false);
+    if (!userId) return;
+    let live = true;
+    getJson<{ is_admin?: boolean }>('/api/me')
+      .then((me) => live && setIsAdmin(me.is_admin === true))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [userId]);
+
   const value = useMemo<AuthValue>(
-    () => ({ ...actions, available: supabase !== null, ready, session }),
-    [ready, session],
+    () => ({ ...actions, available: supabase !== null, ready, session, isAdmin }),
+    [ready, session, isAdmin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

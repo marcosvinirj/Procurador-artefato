@@ -27,16 +27,32 @@ async function authHeader(): Promise<Record<string, string>> {
   }
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const auth = await authHeader();
+/** GET, ou POST com corpo JSON quando `body` vem definido. O token vai no
+ *  cabecalho (nunca em cookie), por isso outro site nao consegue forjar o pedido. */
+async function request<T>(path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json', ...(await authHeader()) };
+  const init: RequestInit = { headers };
+  if (body !== undefined) {
+    init.method = 'POST';
+    init.body = JSON.stringify(body);
+    headers['Content-Type'] = 'application/json';
+  }
   let response: Response;
   try {
-    response = await fetch(path, { headers: { Accept: 'application/json', ...auth } });
+    response = await fetch(path, init);
   } catch {
     throw { kind: 'network' } satisfies FetchError;
   }
   if (!response.ok) throw { kind: 'http', status: response.status } satisfies FetchError;
   return (await response.json()) as T;
+}
+
+export function getJson<T>(path: string): Promise<T> {
+  return request<T>(path);
+}
+
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, body);
 }
 
 function toFetchError(cause: unknown): FetchError {

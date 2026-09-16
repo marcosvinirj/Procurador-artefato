@@ -18,8 +18,9 @@ export interface ModelSummary {
 export interface ModelsResponse {
   models: ModelSummary[];
   categories: string[];
-  /** Plano gratis: quantos modelos bloqueados ha por categoria (so a contagem, nunca os dados). */
-  locked: Record<string, number>;
+  /** Plano gratis: um item por modelo bloqueado, na ordem do ranking — so a
+   *  categoria e a faixa larga do score, nunca o nome nem os numeros. */
+  locked: { category: string; band: [number, number] }[];
   plan: 'free' | 'paid';
 }
 

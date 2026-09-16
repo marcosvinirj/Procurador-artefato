@@ -44,13 +44,12 @@ function Catalog() {
     );
   }, [data, query, category, locale]);
 
-  // Plano gratis: o servidor so diz quantos estao bloqueados por categoria.
-  // Uma busca nunca os encontra (nao ha nome para comparar), por isso somem.
-  const lockedByCategory = data?.locked ?? {};
-  const lockedTotal = Object.values(lockedByCategory).reduce((sum, n) => sum + n, 0);
+  // Plano gratis: dos bloqueados so vem a categoria e a faixa do score. Uma
+  // busca nunca os encontra (nao ha nome para comparar), por isso somem.
+  const locked = data?.locked ?? [];
   const lockedShown =
-    query.trim() !== '' ? 0 : category === null ? lockedTotal : (lockedByCategory[category] ?? 0);
-  const shown = visible.length + lockedShown;
+    query.trim() !== '' ? [] : locked.filter((item) => category === null || item.category === category);
+  const shown = visible.length + lockedShown.length;
 
   return (
     <div className="space-y-6">
@@ -72,7 +71,7 @@ function Catalog() {
       {!loading && !error && data && <StatusNotice models={data.models} />}
       {!loading && !error && data?.plan === 'free' && (
         <p className="font-mono text-[11px] text-open">
-          {t('plan.free_notice', { shown: data.models.length, total: data.models.length + lockedTotal })}
+          {t('plan.free_notice', { shown: data.models.length, total: data.models.length + locked.length })}
         </p>
       )}
 
@@ -81,7 +80,7 @@ function Catalog() {
       {!loading && !error && shown === 0 && (
         <EmptyState
           messageKey={
-            (data?.models.length ?? 0) + lockedTotal === 0
+            (data?.models.length ?? 0) + locked.length === 0
               ? 'state.empty_no_snapshots'
               : 'state.empty_no_match'
           }
@@ -96,8 +95,8 @@ function Catalog() {
             {visible.map((model) => (
               <ModelCard key={model.id} model={model} />
             ))}
-            {Array.from({ length: lockedShown }, (_, index) => (
-              <LockedCard key={`locked-${index}`} />
+            {lockedShown.map((item, index) => (
+              <LockedCard key={`locked-${index}`} category={item.category} band={item.band} />
             ))}
           </div>
         </>
