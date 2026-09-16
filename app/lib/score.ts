@@ -5,9 +5,12 @@ export type Tone = 'open' | 'mid' | 'tight';
  *  Espelham OPEN_THRESHOLD/SATURATED_THRESHOLD em core/scoring.py (Python) —
  *  os dois ficheiros nao partilham codigo, mudar um sem o outro desalinha o
  *  que se ve aqui do que o arquivamento automatico decide no backend. */
+export const OPEN_MIN = 65;
+export const MID_MIN = 45;
+
 export function toneOf(score: number): Tone {
-  if (score >= 65) return 'open';
-  return score >= 45 ? 'mid' : 'tight';
+  if (score >= OPEN_MIN) return 'open';
+  return score >= MID_MIN ? 'mid' : 'tight';
 }
 
 export const TONE_HEX: Record<Tone, string> = {

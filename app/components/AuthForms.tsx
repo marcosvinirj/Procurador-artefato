@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 
+import { OpportunityScale } from '@/components/OpportunityScale';
 import { useAuth, type AuthResult } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
 
@@ -70,21 +71,30 @@ export function LoginForm({ initial }: { initial: Mode }) {
 
   if (!auth.available) {
     return (
-      <AuthCard title={t('login.title.signin')}>
+      <AuthShell title={t('login.title.signin')}>
         <p className="text-sm text-muted">{t('login.unavailable')}</p>
-      </AuthCard>
+      </AuthShell>
     );
   }
 
+  // Quem esta a entrar pode ir criar conta; quem cria ou recupera, volta a entrar.
+  const footer = (
+    <p>
+      {t(`login.prompt.${mode}`)}{' '}
+      <TextButton onClick={() => switchTo(mode === 'signin' ? 'signup' : 'signin')} strong>
+        {t(mode === 'signin' ? 'login.link.signup' : 'login.link.signin')}
+      </TextButton>
+    </p>
+  );
+
   return (
-    <AuthCard title={t(`login.title.${mode}`)}>
+    <AuthShell title={t(`login.title.${mode}`)} subtitle={notice ? undefined : t(`login.subtitle.${mode}`)} footer={footer}>
       {notice ? (
-        <p role="status" className="text-sm leading-relaxed text-slate-200">
+        <p role="status" className="border-l-2 border-open pl-4 text-sm leading-relaxed text-slate-200">
           {t(notice, { email: email.trim() })}
         </p>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-4">
-          <p className="text-sm text-muted">{t(`login.subtitle.${mode}`)}</p>
+        <form onSubmit={onSubmit} className="space-y-5">
           <Field
             label={t('login.email_label')}
             type="email"
@@ -97,6 +107,11 @@ export function LoginForm({ initial }: { initial: Mode }) {
             <Field
               label={t('login.password_label')}
               hint={mode === 'signup' ? t('login.password_hint') : undefined}
+              action={
+                mode === 'signin' && (
+                  <TextButton onClick={() => switchTo('forgot')}>{t('login.to_forgot')}</TextButton>
+                )
+              }
               type="password"
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               minLength={mode === 'signup' ? 8 : undefined}
@@ -107,24 +122,14 @@ export function LoginForm({ initial }: { initial: Mode }) {
           )}
           <AuthError code={error} />
           {error === 'email_not_confirmed' && (
-            <TextButton onClick={() => void resend()} disabled={busy}>
+            <TextButton onClick={() => void resend()} disabled={busy} strong>
               {t('login.resend')}
             </TextButton>
           )}
           <SubmitButton busy={busy}>{t(`login.submit.${mode}`)}</SubmitButton>
         </form>
       )}
-      <nav className="flex flex-col items-start gap-2 border-t border-edge/70 pt-4">
-        {mode === 'signin' ? (
-          <>
-            <TextButton onClick={() => switchTo('forgot')}>{t('login.to_forgot')}</TextButton>
-            <TextButton onClick={() => switchTo('signup')}>{t('login.to_signup')}</TextButton>
-          </>
-        ) : (
-          <TextButton onClick={() => switchTo('signin')}>{t('login.to_signin')}</TextButton>
-        )}
-      </nav>
-    </AuthCard>
+    </AuthShell>
   );
 }
 
@@ -143,18 +148,18 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <AuthCard title={t('login.title.reset')}>
+    <AuthShell title={t('login.title.reset')}>
       {!ready && <p className="text-sm text-muted">{t('login.busy')}</p>}
       {ready && !session && (
-        <div className="space-y-3">
-          <p className="text-sm text-muted">{t('login.reset_invalid')}</p>
-          <Link href="/login" className="text-xs text-open">
-            {t('header.sign_in')}
+        <div className="space-y-5">
+          <p className="text-sm leading-relaxed text-muted">{t('login.reset_invalid')}</p>
+          <Link href="/login" className="btn-ghost">
+            {t('login.submit.signin')}
           </Link>
         </div>
       )}
       {ready && session && (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-5">
           <Field
             label={t('login.new_password_label')}
             hint={t('login.password_hint')}
@@ -169,24 +174,35 @@ export function ResetPasswordForm() {
           <SubmitButton busy={busy}>{t('login.submit.reset')}</SubmitButton>
         </form>
       )}
-    </AuthCard>
+    </AuthShell>
   );
 }
 
-function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
+/** Formulario a esquerda; a direita, o medidor que a pessoa vai usar la dentro. */
+function AuthShell({
+  title,
+  subtitle,
+  footer,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const { t } = useTranslation();
   return (
-    <div className="mx-auto max-w-sm space-y-6 py-6">
-      <Link
-        href="/"
-        className="inline-flex rounded font-mono text-xs uppercase tracking-wider text-muted transition hover:text-open"
-      >
-        {t('login.back')}
-      </Link>
-      <section className="panel space-y-4 p-6">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-50">{title}</h1>
-        {children}
+    <div className="mx-auto grid max-w-4xl gap-4 py-2 sm:py-8 lg:grid-cols-2 lg:gap-0">
+      <section className="panel flex flex-col p-6 sm:p-10 lg:rounded-r-none">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-2 text-sm leading-relaxed text-muted">{subtitle}</p>}
+        <div className="mt-8 flex-1">{children}</div>
+        {footer && <div className="mt-8 border-t border-edge pt-5 text-sm text-muted">{footer}</div>}
       </section>
+      <aside className="flex flex-col items-center justify-center gap-6 rounded-xl border border-edge bg-ink/60 p-6 sm:p-10 lg:rounded-l-none lg:border-l-0">
+        <OpportunityScale />
+        <p className="max-w-xs text-center text-xs leading-relaxed text-muted">{t('scale.caption')}</p>
+      </aside>
     </div>
   );
 }
@@ -194,18 +210,49 @@ function AuthCard({ title, children }: { title: string; children: React.ReactNod
 function Field({
   label,
   hint,
+  action,
+  type,
   ...input
-}: { label: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: {
+  label: string;
+  hint?: string;
+  action?: React.ReactNode;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
+  const { t } = useTranslation();
+  const id = useId();
+  const [revealed, setRevealed] = useState(false);
+  const secret = type === 'password';
+
   return (
-    <label className="block space-y-1.5">
-      <span className="font-mono text-[11px] uppercase tracking-wider text-muted">{label}</span>
-      <input
-        required
-        {...input}
-        className="w-full rounded-lg border border-edge bg-panel/80 px-3 py-2.5 font-mono text-sm text-slate-100"
-      />
-      {hint && <span className="block text-xs text-muted">{hint}</span>}
-    </label>
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="font-mono text-[11px] uppercase tracking-wider text-muted">
+          {label}
+        </label>
+        {action}
+      </div>
+      <div className="relative mt-2">
+        {/* 16px: abaixo disso o Safari do iPad/iPhone faz zoom ao tocar no campo. */}
+        <input
+          id={id}
+          required
+          type={secret && revealed ? 'text' : type}
+          {...input}
+          className={`w-full rounded-lg border border-edge bg-ink/70 px-4 py-3 text-base text-slate-100 transition focus:border-open/60 ${secret ? 'pr-24' : ''}`}
+        />
+        {secret && (
+          <button
+            type="button"
+            onClick={() => setRevealed((value) => !value)}
+            aria-pressed={revealed}
+            className="absolute inset-y-1 right-1 rounded-md px-3 font-mono text-[11px] uppercase tracking-wider text-muted transition hover:text-open"
+          >
+            {t(revealed ? 'login.hide' : 'login.show')}
+          </button>
+        )}
+      </div>
+      {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
+    </div>
   );
 }
 
@@ -213,7 +260,7 @@ function AuthError({ code }: { code: string | null }) {
   const { t } = useTranslation();
   if (!code) return null;
   return (
-    <p role="alert" className="text-sm text-tight">
+    <p role="alert" className="rounded-lg border border-tight/40 bg-tight/10 px-4 py-3 text-sm text-tight">
       {t(ERROR_KEY[code] ?? 'login.error.generic')}
     </p>
   );
@@ -222,22 +269,20 @@ function AuthError({ code }: { code: string | null }) {
 function SubmitButton({ busy, children }: { busy: boolean; children: React.ReactNode }) {
   const { t } = useTranslation();
   return (
-    <button
-      type="submit"
-      disabled={busy}
-      className="w-full rounded-md border border-open bg-open/10 px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-open transition hover:bg-open/20 disabled:opacity-50"
-    >
+    <button type="submit" disabled={busy} className="btn-primary w-full">
       {busy ? t('login.busy') : children}
     </button>
   );
 }
 
-function TextButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+function TextButton({ strong = false, ...props }: { strong?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
       {...props}
-      className="text-left text-xs text-muted transition hover:text-open disabled:opacity-50"
+      className={`rounded text-sm transition disabled:opacity-50 ${
+        strong ? 'font-medium text-open hover:underline' : 'text-muted hover:text-open'
+      }`}
     />
   );
 }

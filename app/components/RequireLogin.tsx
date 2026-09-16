@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Fragment } from 'react';
 
+import { OpportunityScale } from '@/components/OpportunityScale';
 import { LoadingGrid } from '@/components/StateView';
 import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
@@ -21,23 +22,20 @@ function Welcome() {
   const { t } = useTranslation();
   const { available } = useAuth();
   return (
-    <section className="mx-auto max-w-xl space-y-5 py-12 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
-        {t('page.heading')}
-      </h1>
-      <p className="text-sm leading-relaxed text-muted">{t('welcome.body')}</p>
+    <section className="mx-auto flex max-w-2xl flex-col items-center gap-8 py-6 text-center sm:py-14">
+      <OpportunityScale large />
+      <div className="space-y-4">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-50 sm:text-5xl">
+          {t('page.heading')}
+        </h1>
+        <p className="mx-auto max-w-lg text-base leading-relaxed text-muted">{t('welcome.body')}</p>
+      </div>
       {available ? (
         <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            href="/signup"
-            className="rounded-md border border-open bg-open/10 px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-open transition hover:bg-open/20"
-          >
+          <Link href="/signup" className="btn-primary">
             {t('welcome.signup')}
           </Link>
-          <Link
-            href="/login"
-            className="rounded-md border border-edge px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-slate-200 transition hover:border-open hover:text-open"
-          >
+          <Link href="/login" className="btn-ghost">
             {t('header.sign_in')}
           </Link>
         </div>
