@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from api import index
 from core import db, discovery, sources
-from core.discovery import is_variant, known_terms, redundant, tokens
+from core.discovery import is_variant, known_terms, product_term, rejectable, tokens
 
 CRON = {"Authorization": "Bearer segredo"}
 
@@ -17,13 +17,16 @@ def row(keyword, status="active", category="decoracao", synonyms=(), rid=None):
             "status": status, "synonyms": list(synonyms)}
 
 
-KNOWN = known_terms([row("moon lamp", synonyms=["luna lamp"]), row("earbud case"), row("phone case")])
+KNOWN = known_terms(
+    [row("moon lamp", synonyms=["luna lamp"]), row("earbud case"), row("phone case"), row("headphone stand")]
+)
 
 
 def test_tokens_ignora_plural_e_ruido():
     assert tokens("3D Printed Moon Lamps STL") == {"moon", "lamp"}
     assert tokens("storage boxes") == tokens("storage box")
     assert tokens("glass vase") == {"glass", "vase"}
+    assert tokens("iPhone 18 cases") == tokens("phone case")  # alias + numero de modelo
 
 
 @pytest.mark.parametrize(
@@ -40,6 +43,8 @@ def test_tokens_ignora_plural_e_ruido():
         "luna lamp free",  # sinonimo tambem conta
         "lamp",  # contido num conhecido: generico demais
         "3d printed",  # so ruido: nao e produto nenhum
+        "iphone 18 case",  # capa de telemovel com outro nome
+        "stand for headphones",  # "headphone stand" com as palavras trocadas
     ],
 )
 def test_variacoes_sao_barradas(term):
@@ -51,19 +56,36 @@ def test_produtos_diferentes_passam(term):
     assert not is_variant(term, KNOWN)
 
 
-def test_pendentes_redundantes_entre_si_fica_o_mais_generico():
-    pending = [
-        row("aquarius moon lamp", "pending"),
-        row("3d printed dragon egg", "pending"),
-        row("dragon egg", "pending"),
-        row("chess set", "pending"),
+def pending(keyword, source=discovery.SOURCE):
+    return {**row(keyword, "pending"), "source": source}
+
+
+def test_pendentes_a_rejeitar():
+    rows = [
+        pending("aquarius moon lamp"),  # variacao de um ativo
+        pending("dragon eggs"),  # repete outro pendente: fica o mais curto
+        pending("dragon egg"),
+        pending("chess set"),
+        pending("iphone 18", discovery.LEGACY_SOURCE),  # busca antiga, sem filtro 3D
     ]
-    assert sorted(redundant(pending, [row("moon lamp")])) == ["3d printed dragon egg", "aquarius moon lamp"]
+    assert sorted(rejectable(rows, [row("moon lamp")])) == ["aquarius moon lamp", "dragon eggs", "iphone 18"]
 
 
-def test_nome_sem_o_prefixo():
-    assert discovery.display_name("3d printed dragon egg") == "Dragon Egg"
-    assert discovery.display_name("3d printed") == "3D Printed"
+@pytest.mark.parametrize(
+    "query,product",
+    [
+        ("3d printed dragon egg", "dragon egg"),
+        ("3D-Printed Chess Set STL", "chess set"),
+        ("best 3d print cable clip for desk", "cable clip for desk"),
+        ("3d printed toys for kids", "toys for kids"),
+        ("free stl 3d printing files", None),  # nada sobra
+        ("iphone 18", None),  # nao fala de impressao 3D
+        ("3d movie", None),
+        ("printed shirt", None),
+    ],
+)
+def test_so_pesquisas_de_impressao_3d_viram_produto(query, product):
+    assert product_term(query) == product
 
 
 class FakeClient:
@@ -76,8 +98,9 @@ def api(monkeypatch):
     monkeypatch.setenv("CRON_SECRET", "segredo")
     rows = [
         row("moon lamp"),
-        row("aquarius moon lamp", "pending", rid="p1"),  # variacao antiga: rejeitar
-        row("chess set", "pending", rid="p2"),  # candidato valido: fica
+        {**row("aquarius moon lamp", "pending", rid="p1"), "source": discovery.SOURCE},  # variacao: rejeitar
+        {**row("chess set", "pending", rid="p2"), "source": discovery.SOURCE},  # valido: fica
+        {**row("iphone 18", "pending", rid="p3"), "source": discovery.LEGACY_SOURCE},  # busca antiga: rejeitar
         row("cat toy", "rejected", category="brinquedos"),  # rejeitado continua conhecido
     ]
     written = {"inserted": [], "rejected": []}
@@ -94,23 +117,32 @@ def api(monkeypatch):
 def test_descoberta_nao_propoe_variacoes_e_limpa_as_antigas(api, monkeypatch):
     client, written = api
     related = {
-        "3d printed toys": ["3d printed toys", "cat toys", "3d printed dragon egg", "dragon eggs",
-                            "fidget spinner", "chess set", "marble run", "rubber band gun", "dice box"],
-        "moon lamp": ["moon lamp stl", "aquarius moon lamp", "night light"],
+        "3d printed toys": [
+            "3d printed toys",  # a propria semente
+            "iphone 18",  # nao e impressao 3D
+            "3d printed cat toys",  # rejeitado antes: continua conhecido
+            "3d printed dragon egg",
+            "3d printed dragon eggs",  # repete o anterior
+            "3d printed fidget spinner",
+            "3d printed chess set",  # ja pendente
+            "3d printed toys for kids",  # a semente com enfeite
+            "best 3d print marble run stl",
+            "3d printed rubber band gun",  # passa do limite por semente
+        ],
+        "3d printed moon lamp": ["3d printed moon lamp stl", "aquarius moon lamp", "3d printed night light"],
     }
     monkeypatch.setattr(discovery, "related_terms", lambda _c, term, limit=10: related.get(term, []))
 
     body = client.get("/api/discover?offset=0&limit=25", headers=CRON).json()
 
-    assert written["rejected"] == ["p1"]
-    assert body["duplicates_rejected"] == 1
+    assert sorted(written["rejected"]) == ["p1", "p3"]
+    assert body["duplicates_rejected"] == 2
     keywords = [c["keyword"] for c in written["inserted"]]
-    # cat toy (rejeitado), dragon eggs (repete o anterior) e chess set (ja pendente) ficam de fora;
-    # no maximo DISCOVER_PER_SEED por semente.
-    assert keywords == ["3d printed dragon egg", "fidget spinner", "marble run", "night light"]
+    assert keywords == ["dragon egg", "fidget spinner", "marble run", "night light"]
     assert written["inserted"][0]["name"] == "Dragon Egg"
     assert written["inserted"][0]["category"] == "brinquedos"
-    assert all(c["status"] == "pending" for c in written["inserted"])
+    assert written["inserted"][-1]["category"] == "decoracao"
+    assert all(c["status"] == "pending" and c["source"] == discovery.SOURCE for c in written["inserted"])
 
 
 def test_cron_diario_roda_as_sementes(api, monkeypatch):

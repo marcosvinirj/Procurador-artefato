@@ -17,33 +17,62 @@ import httpx
 TRENDS_EXPLORE = "https://trends.google.com/trends/api/explore"
 TRENDS_RELATED = "https://trends.google.com/trends/api/widgetdata/relatedsearches"
 
-# Sementes genericas por categoria. As sementes por produto ("moon lamp") quase
-# so devolvem variacoes do proprio produto ("aquarius moon lamp"); estas trazem
-# produtos diferentes ("3d printed dragon egg").
+# Toda a busca parte de "3d printed ...": o Google devolve o que as pessoas
+# pesquisam JUNTO com o termo, e sem isto vinha de tudo ("iphone 18" a partir
+# de "phone case"). As genericas trazem produtos diferentes dos que ja temos.
 CATEGORY_SEEDS = (
     ("3d printed toys", "brinquedos"),
+    ("3d printed fidget", "brinquedos"),
     ("3d printed home decor", "decoracao"),
+    ("3d printed lamp", "decoracao"),
     ("3d printed organizer", "utilidades"),
+    ("3d printed kitchen", "utilidades"),
     ("3d printed desk accessories", "gadgets"),
+    ("3d printed gaming accessories", "gadgets"),
 )
+SOURCE = "google_trends_3d"
+# Candidatos de antes do filtro de impressao 3D: sem garantia de relevancia.
+LEGACY_SOURCE = "google_trends_related"
 
-# Palavras que nao distinguem um produto de outro.
-NOISE = frozenset(
-    "3d printed print printing printer stl file files free diy custom for the a an and with of to in on".split()
-)
+PRINT_WORDS = frozenset("3d printed print prints printing printer printers".split())
+# Enfeite de pesquisa: sai do nome guardado ("best 3d printed dragon stl" -> "dragon").
+FILLER = frozenset("stl file files free diy custom best cool cute easy cheap top idea ideas near me".split())
+GRAMMAR = frozenset("for the a an and with of to in on".split())
+# Palavras que nao distinguem um produto de outro (so para comparar).
+NOISE = PRINT_WORDS | FILLER | GRAMMAR | frozenset("gift gifts kid kids him her men women".split())
+# O mesmo objeto com outro nome: "iphone 18 case" e uma "phone case".
+ALIASES = {"iphone": "phone", "smartphone": "phone", "cellphone": "phone", "airpod": "earbud"}
 
 
-def _singular(word: str) -> str:
+def _word(word: str) -> str:
     if len(word) > 3 and word.endswith(("xes", "ches", "shes")):
-        return word[:-2]
-    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
-        return word[:-1]
-    return word
+        word = word[:-2]
+    elif len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        word = word[:-1]
+    return ALIASES.get(word, word)
 
 
 def tokens(term: str) -> frozenset[str]:
-    """As palavras que identificam o produto: minusculas, no singular, sem ruido."""
-    return frozenset(_singular(w) for w in re.findall(r"[a-z0-9]+", term.lower()) if w not in NOISE)
+    """As palavras que identificam o produto: minusculas, no singular, sem ruido
+    nem numeros de modelo."""
+    words = re.findall(r"[a-z0-9]+", term.lower())
+    return frozenset(_word(w) for w in words if w not in NOISE and not w.isdigit())
+
+
+def product_term(query: str) -> str | None:
+    """"3d printed dragon egg" -> "dragon egg"; None se a pesquisa nao fala de
+    impressao 3D. Guarda-se sem o prefixo, como as keywords que ja existem —
+    senao a concorrencia no Etsy sairia noutra escala e o score deixava de ser
+    comparavel."""
+    words = re.findall(r"[a-z0-9]+", query.lower())
+    if "3d" not in words or not any(w.startswith("print") for w in words):
+        return None
+    words = [w for w in words if w not in PRINT_WORDS and w not in FILLER]
+    while words and words[0] in GRAMMAR:
+        words.pop(0)
+    while words and words[-1] in GRAMMAR:
+        words.pop()
+    return " ".join(words) or None
 
 
 def is_variant(term: str, known: Iterable[frozenset[str]]) -> bool:
@@ -62,21 +91,18 @@ def known_terms(rows: Sequence[dict[str, Any]]) -> list[frozenset[str]]:
 
 def seeds(rows: Sequence[dict[str, Any]]) -> list[tuple[str, str]]:
     """(termo, categoria) a explorar: as genericas primeiro, depois cada ativo."""
-    return [*CATEGORY_SEEDS, *((r["keyword"], r["category"]) for r in rows if r["status"] == "active")]
+    active = ((f"3d printed {r['keyword']}", r["category"]) for r in rows if r["status"] == "active")
+    return [*CATEGORY_SEEDS, *active]
 
 
-def display_name(query: str) -> str:
-    """"3d printed dragon egg" -> "Dragon Egg". A keyword guarda a consulta inteira."""
-    return " ".join(w for w in query.split() if w.lower() not in {"3d", "printed"}).title() or query.title()
-
-
-def redundant(pending: Sequence[dict[str, Any]], others: Sequence[dict[str, Any]]) -> list[str]:
-    """Ids dos pendentes que repetem algo ja conhecido, ou outro pendente mais
-    generico — entre dois, fica o de menos palavras (e, no empate, o mais curto)."""
+def rejectable(pending: Sequence[dict[str, Any]], others: Sequence[dict[str, Any]]) -> list[str]:
+    """Ids dos pendentes a rejeitar: os da busca antiga (sem filtro de impressao
+    3D) e os que repetem algo ja conhecido ou outro pendente mais generico —
+    entre dois, fica o de menos palavras (e, no empate, o mais curto)."""
     known = known_terms(others)
     ids = []
     for row in sorted(pending, key=lambda r: (len(tokens(r["keyword"])), len(r["keyword"]))):
-        if is_variant(row["keyword"], known):
+        if row.get("source") == LEGACY_SOURCE or is_variant(row["keyword"], known):
             ids.append(row["id"])
         else:
             known.append(tokens(row["keyword"]))

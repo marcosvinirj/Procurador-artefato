@@ -304,13 +304,14 @@ def discover(
     """Propoe candidatos novos. Nunca fica publico sozinho — entra como
     'pending', so visivel em /api/candidates ate alguem aprovar.
 
-    Nunca propoe uma variacao de algo ja conhecido ("aquarius moon lamp" com
-    "moon lamp" no ranking), e rejeita de vez as que ja estavam pendentes.
+    So aceita o que as pessoas pesquisam como impressao 3D ("3d printed ..."),
+    nunca uma variacao de algo ja conhecido ("aquarius moon lamp" com "moon
+    lamp" no ranking), e rejeita de vez os pendentes que falham nisto.
     Sem `offset` (o cron diario) as sementes rodam: cada dia um bloco
     diferente, em vez de explorar sempre os mesmos produtos."""
     rows = db.fetch_model_rows()
     pending = [r for r in rows if r["status"] == db.PENDING]
-    duplicates = discovery.redundant(pending, [r for r in rows if r["status"] != db.PENDING])
+    duplicates = discovery.rejectable(pending, [r for r in rows if r["status"] != db.PENDING])
     db.apply_lifecycle_changes([{"id": i, "status": db.REJECTED, "low_score_streak": 0} for i in duplicates])
 
     seeds = discovery.seeds(rows)
@@ -329,19 +330,21 @@ def discover(
                 break
             added = 0
             for query in discovery.related_terms(client, term):
-                words = discovery.tokens(query)
                 if added == DISCOVER_PER_SEED:
                     break
-                if discovery.is_variant(query, known) or words <= discovery.tokens(term):
+                product = discovery.product_term(query)
+                if product is None or discovery.is_variant(product, known):
                     continue
-                known.append(words)
+                if discovery.tokens(product) <= discovery.tokens(term):
+                    continue  # e a propria semente dita de outra forma
+                known.append(discovery.tokens(product))
                 candidates.append(
                     {
-                        "name": discovery.display_name(query),
+                        "name": product.title(),
                         "category": category,
-                        "keyword": query.lower(),
+                        "keyword": product,
                         "status": db.PENDING,
-                        "source": "google_trends_related",
+                        "source": discovery.SOURCE,
                     }
                 )
                 added += 1
@@ -365,8 +368,8 @@ def list_candidates() -> dict[str, Any]:
     em bruto, nao o score normalizado (a pool de percentil e so dos ativos)."""
     rows = db.fetch_model_rows()
     pending = [r for r in rows if r["status"] == db.PENDING]
-    # Variacoes de algo ja conhecido nem aparecem; o proximo /api/discover rejeita-as de vez.
-    hidden = set(discovery.redundant(pending, [r for r in rows if r["status"] != db.PENDING]))
+    # Variacoes e candidatos da busca antiga nem aparecem; o proximo /api/discover rejeita-os.
+    hidden = set(discovery.rejectable(pending, [r for r in rows if r["status"] != db.PENDING]))
     models = {m.id: m for m in db.load_models(status=db.PENDING)}
     result = []
     for row in pending:

@@ -115,13 +115,18 @@ de revisao) → `active` ou `rejected` (decisao humana) → `active` pode virar
 se recuperar. Nunca se apaga uma linha: `archived` so deixa de aparecer no
 ranking publico, o historico fica intacto e o link direto ainda abre.
 
-A descoberta (`core/discovery.py`) nunca propoe uma variacao de algo ja
-conhecido, em qualquer estado: compara as palavras que identificam o produto
-(singular, sem "3d printed"/"stl"/"free"), e um termo que contem outro, ou esta
-contido nele, e o mesmo produto ("aquarius moon lamp" = "moon lamp"). Pendentes
-nessa situacao somem de `/api/candidates` e o proximo `/api/discover` rejeita-os.
-As sementes sao buscas genericas por categoria + cada ativo, e o cron diario
-roda-as (um bloco diferente por dia). A recolha processa ativos primeiro, depois
+A descoberta (`core/discovery.py`) so aceita o que as pessoas pesquisam como
+impressao 3D: toda a semente comeca por "3d printed" e a consulta devolvida tem
+de falar de impressao 3D (sem isto vinha "iphone 18" a partir de "phone case").
+Guarda o produto sem esse prefixo, como as keywords existentes. Nunca propoe uma
+variacao de algo ja conhecido, em qualquer estado: compara as palavras que
+identificam o produto (singular, sem enfeites, sem numeros de modelo, com
+aliases tipo iphone=phone), e um termo que contem outro, ou esta contido nele,
+e o mesmo produto ("aquarius moon lamp" = "moon lamp"). Pendentes nessa
+situacao, ou da busca antiga sem filtro 3D (`source=google_trends_related`),
+somem de `/api/candidates` e o proximo `/api/discover` rejeita-os. As sementes
+sao genericas por categoria + cada ativo, e o cron diario roda-as (um bloco
+diferente por dia). A recolha processa ativos primeiro, depois
 arquivados e pendentes; rejeitados nao gastam cota.
 
 A regra de arquivamento e sequencial, nao de um dia isolado: precisa de 5 dias
