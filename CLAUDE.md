@@ -92,9 +92,13 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    **Confirm email ligado** (e o que garante "email valido") e senha minima de 8.
    Login por email + senha; confirmacao e "esqueci a senha" chegam por link (PKCE:
    o link de nova senha tem de ser aberto no navegador que o pediu). O SMTP
-   gratuito do Supabase so manda poucos emails por hora — antes de divulgar,
-   SMTP proprio (ex: Resend). Para testar o plano pago: Table Editor → `profiles`
-   → `is_paid = true` na propria linha.
+   gratuito do Supabase so entrega a membros da equipa do projeto, por isso os
+   emails saem por SMTP proprio (Authentication → Emails → SMTP Settings). Hoje,
+   sem dominio: Gmail dedicado, `smtp.gmail.com:465`, senha de app do Google
+   (~500 emails/dia). Com dominio, trocar para Resend. Um cadastro repetido de
+   um email ja confirmado mostra sucesso mas nao envia nada (anti-enumeracao).
+   Para testar o plano pago: Table Editor → `profiles` → `is_paid = true` na
+   propria linha.
 
 ## Ciclo de vida de um modelo
 
