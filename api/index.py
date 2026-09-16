@@ -30,6 +30,7 @@ log = logging.getLogger("trendprint")
 COLLECT_BUDGET_SECONDS = 7.5
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
+DISCOVER_PER_SEED = 3  # novos por semente, no maximo: a revisao humana tem de dar conta
 FREE_PREVIEW = 2  # quantos do topo do ranking o plano gratis ve por inteiro
 # Faixas que o gratis ve nos bloqueados. Largas de proposito, e alinhadas com os
 # limiares de core/scoring (65 aberto, 45 saturado) para a cor nao mentir.
@@ -46,10 +47,9 @@ async def unhandled(_: Request, exc: Exception) -> JSONResponse:
 
 
 def require_cron(authorization: Annotated[str | None, Header()] = None) -> None:
-    """Autoriza o cron da Vercel e as rotas de administracao (descoberta,
-    revisao de candidatos) com o mesmo segredo. As contas de clientes nunca
-    dao acesso a administracao: o CRON_SECRET e a unica credencial de admin.
-    compare_digest evita descobri-lo por timing byte a byte.
+    """So o cron da Vercel (recolha, arquivamento, descoberta): nenhuma sessao,
+    nem de admin, dispara estas rotas. compare_digest evita descobrir o segredo
+    por timing byte a byte.
     """
     secret = os.environ.get("CRON_SECRET")
     if not secret or not authorization or not hmac.compare_digest(authorization, f"Bearer {secret}"):
@@ -227,9 +227,16 @@ def collect(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> dict[str, Any]:
-    """Recolhe sinais para TODOS os estados (inclui pending: um candidato ja
-    chega a revisao com dados reais, nao as escuras)."""
-    rows = db.fetch_model_rows()[offset : offset + limit]
+    """Recolhe sinais para ativos, arquivados (para poderem reativar) e
+    pendentes (um candidato chega a revisao com dados reais). Os ativos vao
+    primeiro: se o orcamento nao chegar para todos, sao eles que o site mostra
+    — por ordem alfabetica, os candidatos novos passavam a frente. Rejeitados
+    ficam de fora: nao gastam a cota das APIs."""
+    priority = {db.ACTIVE: 0, db.ARCHIVED: 1}
+    rows = sorted(
+        (r for r in db.fetch_model_rows() if r["status"] != db.REJECTED),
+        key=lambda r: priority.get(r["status"], 2),
+    )[offset : offset + limit]
     today = date.today().isoformat()
     deadline = time.monotonic() + COLLECT_BUDGET_SECONDS
     snapshots: list[dict[str, Any]] = []
@@ -291,39 +298,61 @@ def lifecycle_route() -> dict[str, Any]:
 
 @app.get("/api/discover", dependencies=[Depends(require_cron)])
 def discover(
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int | None, Query(ge=0)] = None,
     limit: Annotated[int, Query(ge=1, le=25)] = 5,
 ) -> dict[str, Any]:
-    """Propoe candidatos novos a partir dos modelos ativos (sementes para o
-    Google Trends). Nunca fica publico sozinho — entra como 'pending', so
-    visivel em /api/candidates ate alguem aprovar."""
-    seeds = db.fetch_model_rows(status=db.ACTIVE)[offset : offset + limit]
+    """Propoe candidatos novos. Nunca fica publico sozinho — entra como
+    'pending', so visivel em /api/candidates ate alguem aprovar.
+
+    Nunca propoe uma variacao de algo ja conhecido ("aquarius moon lamp" com
+    "moon lamp" no ranking), e rejeita de vez as que ja estavam pendentes.
+    Sem `offset` (o cron diario) as sementes rodam: cada dia um bloco
+    diferente, em vez de explorar sempre os mesmos produtos."""
+    rows = db.fetch_model_rows()
+    pending = [r for r in rows if r["status"] == db.PENDING]
+    duplicates = discovery.redundant(pending, [r for r in rows if r["status"] != db.PENDING])
+    db.apply_lifecycle_changes([{"id": i, "status": db.REJECTED, "low_score_streak": 0} for i in duplicates])
+
+    seeds = discovery.seeds(rows)
+    if offset is None:
+        offset = date.today().toordinal() * limit % max(len(seeds), 1)
+    batch = seeds[offset : offset + limit]
+    known = discovery.known_terms(rows)
     deadline = time.monotonic() + DISCOVER_BUDGET_SECONDS
     candidates: list[dict[str, Any]] = []
     processed = 0
 
     client = sources.http_client()
     try:
-        for seed in seeds:
+        for term, category in batch:
             if time.monotonic() >= deadline:
                 break
-            for query in discovery.related_terms(client, seed["keyword"]):
+            added = 0
+            for query in discovery.related_terms(client, term):
+                words = discovery.tokens(query)
+                if added == DISCOVER_PER_SEED:
+                    break
+                if discovery.is_variant(query, known) or words <= discovery.tokens(term):
+                    continue
+                known.append(words)
                 candidates.append(
                     {
-                        "name": query.title(),
-                        "category": seed["category"],
+                        "name": discovery.display_name(query),
+                        "category": category,
                         "keyword": query.lower(),
                         "status": db.PENDING,
                         "source": "google_trends_related",
                     }
                 )
+                added += 1
             processed += 1
     finally:
         client.close()
 
     db.insert_candidates(candidates)
-    incomplete = processed < len(seeds) or len(seeds) == limit
+    incomplete = processed < len(batch) or len(batch) == limit
     return {
+        "duplicates_rejected": len(duplicates),
         "seeds_processed": processed,
         "candidates_proposed": len(candidates),
         "next_offset": offset + processed if incomplete else None,
@@ -334,10 +363,15 @@ def discover(
 def list_candidates() -> dict[str, Any]:
     """Candidatos pendentes com o sinal mais recente ja recolhido — numeros
     em bruto, nao o score normalizado (a pool de percentil e so dos ativos)."""
-    rows = db.fetch_model_rows(status=db.PENDING)
+    rows = db.fetch_model_rows()
+    pending = [r for r in rows if r["status"] == db.PENDING]
+    # Variacoes de algo ja conhecido nem aparecem; o proximo /api/discover rejeita-as de vez.
+    hidden = set(discovery.redundant(pending, [r for r in rows if r["status"] != db.PENDING]))
     models = {m.id: m for m in db.load_models(status=db.PENDING)}
     result = []
-    for row in rows:
+    for row in pending:
+        if row["id"] in hidden:
+            continue
         model = models.get(row["id"])
         latest = sorted(model.snapshots, key=lambda s: s.day)[-1] if model and model.snapshots else None
         result.append(
