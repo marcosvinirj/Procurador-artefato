@@ -82,7 +82,8 @@ def _free_ids(ranked: list[Scored]) -> set[str]:
 
 
 def _band(score: float) -> list[int]:
-    return next([low, high] for low, high in SCORE_BANDS if score >= low)
+    # O score vive em 0–100; se um dia sair disso, cai na faixa mais baixa em vez de dar 500.
+    return next(([low, high] for low, high in SCORE_BANDS if score >= low), list(SCORE_BANDS[-1]))
 
 
 def _serialize(item: Scored) -> dict[str, Any]:

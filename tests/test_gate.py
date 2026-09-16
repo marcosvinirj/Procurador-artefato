@@ -99,7 +99,7 @@ def test_nada_vai_para_a_cache_partilhada(client):
 
 @pytest.mark.parametrize(
     "score,band",
-    [(100, [80, 100]), (80, [80, 100]), (79.9, [65, 79]), (65, [65, 79]), (64.9, [45, 64]), (45, [45, 64]), (44.9, [0, 44]), (0, [0, 44])],
+    [(100, [80, 100]), (80, [80, 100]), (79.9, [65, 79]), (65, [65, 79]), (64.9, [45, 64]), (45, [45, 64]), (44.9, [0, 44]), (0, [0, 44]), (-3, [0, 44])],
 )
 def test_faixas_seguem_os_limiares_do_score(score, band):
     assert index._band(score) == band
