@@ -6,6 +6,7 @@ import hmac
 import logging
 import os
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from typing import Annotated, Any, Literal
@@ -29,7 +30,7 @@ log = logging.getLogger("trendprint")
 COLLECT_BUDGET_SECONDS = 7.5
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
-LIST_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=600"
+FREE_PREVIEW = 2  # quantos do topo do ranking o plano gratis ve por inteiro
 
 app = FastAPI(title="TrendPrint API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -43,13 +44,28 @@ async def unhandled(_: Request, exc: Exception) -> JSONResponse:
 
 def require_cron(authorization: Annotated[str | None, Header()] = None) -> None:
     """Autoriza o cron da Vercel e as rotas de administracao (descoberta,
-    revisao de candidatos) com o mesmo segredo — nao ha sistema de contas
-    nesta app (fora do escopo do MVP), por isso o CRON_SECRET faz de credencial
-    unica. compare_digest evita descobri-lo por timing byte a byte.
+    revisao de candidatos) com o mesmo segredo. As contas de clientes nunca
+    dao acesso a administracao: o CRON_SECRET e a unica credencial de admin.
+    compare_digest evita descobri-lo por timing byte a byte.
     """
     secret = os.environ.get("CRON_SECRET")
     if not secret or not authorization or not hmac.compare_digest(authorization, f"Bearer {secret}"):
         raise HTTPException(status_code=401, detail="unauthorized")
+
+
+def require_viewer(authorization: Annotated[str | None, Header()] = None) -> auth.Viewer:
+    """O catalogo inteiro exige conta com email confirmado — ate a parte gratis."""
+    viewer = auth.viewer_from_authorization(authorization)
+    if not viewer.authenticated:
+        raise HTTPException(status_code=401, detail="login_required")
+    return viewer
+
+
+def _free_ids(ranked: list[Scored]) -> set[str]:
+    """O que o plano gratis ve: os primeiros do ranking GLOBAL dos ativos.
+    Tem de ser calculado antes de qualquer filtro — se cada busca ou categoria
+    tivesse o seu proprio "top", bastava variar a busca para ver tudo."""
+    return {item.model.id for item in ranked[:FREE_PREVIEW]}
 
 
 def _serialize(item: Scored) -> dict[str, Any]:
@@ -76,21 +92,37 @@ def _matches(item: Scored, needle: str) -> bool:
 
 @app.get("/api/models")
 def list_models(
+    viewer: Annotated[auth.Viewer, Depends(require_viewer)],
     category: Annotated[str | None, Query(max_length=40)] = None,
     q: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, Any]:
-    models = db.load_models(category, status=db.ACTIVE)
+    """Plano pago: tudo. Gratis: os FREE_PREVIEW do topo e, do resto, so
+    quantos ha por categoria — nenhum dado real sai daqui para ser borrado
+    no browser, onde qualquer um o leria."""
+    models = db.load_models(status=db.ACTIVE)
     ranked = score_models(models)
+    locked: Counter[str] = Counter()
+    if not viewer.is_paid:
+        free = _free_ids(ranked)
+        locked.update(item.model.category for item in ranked if item.model.id not in free)
+        ranked = [item for item in ranked if item.model.id in free]
+    if category:
+        ranked = [item for item in ranked if item.model.category == category]
     if q and (needle := q.strip().lower()):
         ranked = [item for item in ranked if _matches(item, needle)]
     return {
         "models": [_serialize(item) for item in ranked],
         "categories": sorted({m.category for m in models}),
+        "locked": dict(locked),
+        "plan": "paid" if viewer.is_paid else "free",
     }
 
 
 @app.get("/api/models/{model_id}")
-def get_model(model_id: Annotated[UUID, Path()]) -> dict[str, Any]:
+def get_model(
+    model_id: Annotated[UUID, Path()],
+    viewer: Annotated[auth.Viewer, Depends(require_viewer)],
+) -> dict[str, Any]:
     """Detalhe: o score vem do ranking dos ativos, senao o percentil perdia a
     referencia da categoria e o gap deixava de ser comparavel.
 
@@ -102,6 +134,8 @@ def get_model(model_id: Annotated[UUID, Path()]) -> dict[str, Any]:
     target = str(model_id)
     active = db.load_models(status=db.ACTIVE)
     ranked = score_models(active)
+    if not viewer.is_paid and target not in _free_ids(ranked):
+        raise HTTPException(status_code=403, detail="paid_only")
     item = next((s for s in ranked if s.model.id == target), None)
 
     if item is None:
@@ -335,13 +369,9 @@ def me(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
 @app.middleware("http")
 async def cache_headers(request: Request, call_next):
     response = await call_next(request)
-    admin_route = request.url.path.startswith(
-        ("/api/collect", "/api/discover", "/api/candidates", "/api/lifecycle")
-    )
-    # Resposta que depende de quem pede nunca pode ir para a cache partilhada da
-    # CDN: seria servir a vista de um assinante pago a um visitante qualquer.
-    personal = "authorization" in request.headers or request.url.path == "/api/me"
-    cacheable = response.status_code < 400 and not admin_route and not personal
-    response.headers["Cache-Control"] = LIST_CACHE if cacheable else "private, no-store"
+    # Todas as rotas dependem de quem pede (catalogo com login, gratis vs pago)
+    # ou sao de administracao: nada pode ir para a cache partilhada da CDN —
+    # seria servir a vista de um assinante pago a outra pessoa.
+    response.headers["Cache-Control"] = "private, no-store"
     response.headers["Vary"] = "Authorization"
     return response

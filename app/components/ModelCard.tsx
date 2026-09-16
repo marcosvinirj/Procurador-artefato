@@ -41,6 +41,42 @@ export function ModelCard({ model }: { model: ModelSummary }) {
   );
 }
 
+/** Um produto do plano pago, visto do gratis. O servidor nao mandou nada dele:
+ *  o que fica borrado e so decoracao, igual em todos os cartoes. */
+export function LockedCard() {
+  const { t } = useTranslation();
+  const bar = 'h-2.5 rounded bg-slate-500/40';
+
+  return (
+    <div className="panel relative flex flex-col gap-4 overflow-hidden p-4">
+      <div aria-hidden className="pointer-events-none flex select-none flex-col gap-4 blur-[3px]">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 space-y-2 pt-1">
+            <div className={`${bar} w-3/4`} />
+            <div className={`${bar} w-1/2`} />
+          </div>
+          <div className="h-14 w-14 rounded-full border-4 border-open/60" />
+        </div>
+        <div className="flex gap-2">
+          <div className={`${bar} w-16`} />
+          <div className="h-2.5 w-20 rounded bg-open/40" />
+        </div>
+        <div className="grid grid-cols-3 gap-2 border-t border-edge/70 pt-3">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="space-y-1.5">
+              <div className={`${bar} w-10`} />
+              <div className={`${bar} w-6`} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center bg-ink/30">
+        <span className="chip border-open/50 bg-ink/80 text-open">{t('locked.label')}</span>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>

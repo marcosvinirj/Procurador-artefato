@@ -1,51 +1,75 @@
 'use client';
 
-import type { Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { supabase } from './supabase';
 
-interface AuthValue {
+/** O erro vai como codigo do Supabase (traduzido no ecra), nunca como a
+ *  mensagem crua, que so existe em ingles. */
+export type AuthResult = { ok: true } | { ok: false; code: string };
+
+async function run(
+  action: (client: SupabaseClient) => Promise<{ error: { code?: string } | null }>,
+): Promise<AuthResult> {
+  if (!supabase) return { ok: false, code: 'unavailable' };
+  try {
+    const { error } = await action(supabase);
+    return error ? { ok: false, code: error.code ?? 'unknown' } : { ok: true };
+  } catch {
+    return { ok: false, code: 'unknown' };
+  }
+}
+
+/** Os links de email voltam sempre ao nosso dominio; o Supabase so aceita
+ *  destinos do mesmo dominio do Site URL ou da lista de Redirect URLs. */
+const back = (path: string) => `${window.location.origin}${path}`;
+
+// A senha vai direto do browser para o Supabase: nunca passa pela nossa API.
+const actions = {
+  signUp: (email: string, password: string) =>
+    run((c) => c.auth.signUp({ email, password, options: { emailRedirectTo: back('/login') } })),
+  signIn: (email: string, password: string) =>
+    run((c) => c.auth.signInWithPassword({ email, password })),
+  resendConfirmation: (email: string) =>
+    run((c) => c.auth.resend({ type: 'signup', email, options: { emailRedirectTo: back('/login') } })),
+  requestReset: (email: string) =>
+    run((c) => c.auth.resetPasswordForEmail(email, { redirectTo: back('/login/reset') })),
+  updatePassword: (password: string) => run((c) => c.auth.updateUser({ password })),
+  signOut: async () => {
+    await supabase?.auth.signOut();
+  },
+};
+
+interface AuthValue extends Readonly<typeof actions> {
   /** false quando o login nao esta configurado neste deploy. */
   available: boolean;
+  /** false ate se saber se ha sessao: evita mostrar as boas-vindas a quem ja entrou. */
+  ready: boolean;
   session: Session | null;
-  signIn: (email: string) => Promise<boolean>;
-  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(supabase === null);
 
   useEffect(() => {
     if (!supabase) return;
+    // getSession espera pela troca do codigo quando se chega de um link de email.
     supabase.auth
       .getSession()
       .then(({ data }) => setSession(data.session))
-      .catch(() => setSession(null));
+      .catch(() => setSession(null))
+      .finally(() => setReady(true));
     const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
     return () => data.subscription.unsubscribe();
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({
-      available: supabase !== null,
-      session,
-      // Registo e login sao o mesmo gesto: o link cria a conta se ainda nao existir.
-      signIn: async (email) => {
-        if (!supabase) return false;
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: `${window.location.origin}/login` },
-        });
-        return !error;
-      },
-      signOut: async () => {
-        await supabase?.auth.signOut();
-      },
-    }),
-    [session],
+    () => ({ ...actions, available: supabase !== null, ready, session }),
+    [ready, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

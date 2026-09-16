@@ -31,8 +31,23 @@ export function EmptyState({ messageKey }: { messageKey: string }) {
 
 export function ErrorState({ error, onRetry }: { error: FetchError; onRetry: () => void }) {
   const { t } = useTranslation();
+
+  // 403 nao e falha: e um produto do plano pago aberto por quem esta no gratis.
+  if (error.kind === 'http' && error.status === 403) {
+    return (
+      <div className="panel px-6 py-12 text-center">
+        <p className="font-mono text-sm text-open">{t('locked.label')}</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted">{t('locked.detail')}</p>
+      </div>
+    );
+  }
+
   const message =
-    error.kind === 'http' ? t('error.http', { status: error.status ?? '—' }) : t('error.network');
+    error.kind === 'network'
+      ? t('error.network')
+      : error.status === 401
+        ? t('error.session')
+        : t('error.http', { status: error.status ?? '—' });
 
   return (
     <div role="alert" className="panel border-tight/40 px-6 py-12 text-center">

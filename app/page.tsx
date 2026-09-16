@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 
 import { Filters } from '@/components/Filters';
-import { ModelCard } from '@/components/ModelCard';
+import { LockedCard, ModelCard } from '@/components/ModelCard';
+import { RequireLogin } from '@/components/RequireLogin';
 import { EmptyState, ErrorState, LoadingGrid } from '@/components/StateView';
 import { StatusNotice } from '@/components/StatusNotice';
 import { useJson } from '@/lib/api';
@@ -20,6 +21,14 @@ function haystack(model: ModelSummary, locale: Locale): string {
 }
 
 export default function Dashboard() {
+  return (
+    <RequireLogin>
+      <Catalog />
+    </RequireLogin>
+  );
+}
+
+function Catalog() {
   const { t, locale } = useTranslation();
   const { data, error, loading, reload } = useJson<ModelsResponse>('/api/models');
   const [query, setQuery] = useState('');
@@ -34,6 +43,14 @@ export default function Dashboard() {
         (needle === '' || haystack(model, locale).includes(needle)),
     );
   }, [data, query, category, locale]);
+
+  // Plano gratis: o servidor so diz quantos estao bloqueados por categoria.
+  // Uma busca nunca os encontra (nao ha nome para comparar), por isso somem.
+  const lockedByCategory = data?.locked ?? {};
+  const lockedTotal = Object.values(lockedByCategory).reduce((sum, n) => sum + n, 0);
+  const lockedShown =
+    query.trim() !== '' ? 0 : category === null ? lockedTotal : (lockedByCategory[category] ?? 0);
+  const shown = visible.length + lockedShown;
 
   return (
     <div className="space-y-6">
@@ -53,26 +70,34 @@ export default function Dashboard() {
       />
 
       {!loading && !error && data && <StatusNotice models={data.models} />}
+      {!loading && !error && data?.plan === 'free' && (
+        <p className="font-mono text-[11px] text-open">
+          {t('plan.free_notice', { shown: data.models.length, total: data.models.length + lockedTotal })}
+        </p>
+      )}
 
       {loading && <LoadingGrid />}
       {!loading && error && <ErrorState error={error} onRetry={reload} />}
-      {!loading && !error && visible.length === 0 && (
+      {!loading && !error && shown === 0 && (
         <EmptyState
           messageKey={
-            (data?.models.length ?? 0) === 0 ? 'state.empty_no_snapshots' : 'state.empty_no_match'
+            (data?.models.length ?? 0) + lockedTotal === 0
+              ? 'state.empty_no_snapshots'
+              : 'state.empty_no_match'
           }
         />
       )}
-      {!loading && !error && visible.length > 0 && (
+      {!loading && !error && shown > 0 && (
         <>
           <p aria-live="polite" className="font-mono text-[11px] text-muted">
-            {t(visible.length === 1 ? 'count.models.one' : 'count.models.other', {
-              n: visible.length,
-            })}
+            {t(shown === 1 ? 'count.models.one' : 'count.models.other', { n: shown })}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((model) => (
               <ModelCard key={model.id} model={model} />
+            ))}
+            {Array.from({ length: lockedShown }, (_, index) => (
+              <LockedCard key={`locked-${index}`} />
             ))}
           </div>
         </>

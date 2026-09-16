@@ -29,10 +29,14 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
 8. **Descoberta nunca publica sozinha.** Um candidato entra como `pending` e so
    fica visivel em `/api/models` depois de aprovado em `/api/candidates`
    (ver secao "Ciclo de vida"). Evita o site encher-se de lixo sem controlo.
-9. **Pago decide-se no servidor, fail-closed.** `profiles.is_paid` so e escrito pela
-   service key (RLS sem politicas: o utilizador nao consegue marcar-se como pago).
-   Qualquer falha a validar a sessao conta como anonimo nao-pago (`core/auth.py`).
-   Resposta que depende de quem pede nunca vai para a cache da CDN
+9. **Acesso e pago decidem-se no servidor, fail-closed.** O catalogo exige conta com
+   email confirmado: sem ela, `/api/models*` responde 401. `profiles.is_paid` so e
+   escrito pela service key (RLS sem politicas: ninguem se marca como pago).
+   Qualquer falha a validar a sessao conta como anonimo (`core/auth.py`).
+   O plano gratis ve os `FREE_PREVIEW` primeiros do ranking **global**, calculados
+   antes de busca/categoria (senao variar a busca revelava tudo); do resto so vai a
+   contagem por categoria, e o detalhe responde 403. Nunca mandar dados reais para
+   o browser "borrar". Nenhuma resposta da API vai para a cache da CDN
    (`private, no-store` + `Vary: Authorization`, no middleware de `api/index.py`).
 
 ## Comandos
@@ -82,11 +86,15 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    aceitar tres crons no Hobby, os que faltarem podem ser disparados a mao, com
    a mesma cadencia, via curl ou um cron externo tipo cron-job.org apontado a
    rota, com o `CRON_SECRET`.)
-4. **Supabase → Authentication → URL Configuration**: Site URL = dominio de
-   producao; Redirect URLs inclui `<dominio>/login` (e `http://localhost:3000/login`
-   em dev). Login por link magico com PKCE: o link tem de ser aberto no mesmo
-   navegador que o pediu. O SMTP gratuito do Supabase so manda poucos emails por
-   hora — para producao a serio, SMTP proprio (ex: Resend).
+4. **Supabase → Authentication**: em URL Configuration, Site URL = dominio de
+   producao e Redirect URLs com `<dominio>/login` e `<dominio>/login/reset` (e os
+   mesmos em `http://localhost:3000` para dev). Em Sign In / Providers → Email:
+   **Confirm email ligado** (e o que garante "email valido") e senha minima de 8.
+   Login por email + senha; confirmacao e "esqueci a senha" chegam por link (PKCE:
+   o link de nova senha tem de ser aberto no navegador que o pediu). O SMTP
+   gratuito do Supabase so manda poucos emails por hora — antes de divulgar,
+   SMTP proprio (ex: Resend). Para testar o plano pago: Table Editor → `profiles`
+   → `is_paid = true` na propria linha.
 
 ## Ciclo de vida de um modelo
 
@@ -114,6 +122,8 @@ todos os dias). Separado, tem os seus ~10s e nao depende disso.
 | adicionar uma fonte de descoberta (candidatos novos) | `core/discovery.py` |
 | mudar a regra de arquivamento (dias, limiar) | `core/lifecycle.py` — `DEFAULT_THRESHOLD_DAYS`, `SATURATED_THRESHOLD` em `core/scoring.py` |
 | adicionar uma rota | `api/index.py` — um so `FastAPI()` |
+| mudar quantos produtos o plano gratis ve | `api/index.py` — `FREE_PREVIEW` |
+| login, cadastro, senha | `app/lib/auth.tsx` + `app/components/AuthForms.tsx` |
 | mexer no visual | `app/components/` |
 
 ## Estado das fontes

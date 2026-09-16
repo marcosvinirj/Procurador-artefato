@@ -51,6 +51,11 @@ def viewer_from_authorization(authorization: str | None) -> Viewer:
         response.raise_for_status()
         user = response.json()
         user_id, email = str(user["id"]), user.get("email")
-    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        confirmed = bool(user.get("email_confirmed_at"))
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        return ANONYMOUS
+    # Email por confirmar (ou sessao anonima do Supabase) nao conta como conta:
+    # o acesso exige um email valido, e so o link de confirmacao o prova.
+    if not confirmed:
         return ANONYMOUS
     return Viewer(user_id=user_id, email=email, is_paid=db.is_paid(user_id))

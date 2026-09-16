@@ -47,11 +47,19 @@ def test_qualquer_falha_e_anonimo_mesmo_que_a_bd_dissesse_pago(monkeypatch, stat
 
 
 def test_token_valido_le_o_pago_do_servidor(monkeypatch):
-    respond(monkeypatch, 200, {"id": "u1", "email": "a@b.c"})
+    respond(monkeypatch, 200, {"id": "u1", "email": "a@b.c", "email_confirmed_at": "2026-09-16T10:00:00Z"})
     monkeypatch.setattr(db, "is_paid", lambda uid: uid == "u1")
     viewer = auth.viewer_from_authorization("Bearer tok")
     assert viewer == auth.Viewer(user_id="u1", email="a@b.c", is_paid=True)
     assert viewer.authenticated
+
+
+@pytest.mark.parametrize("confirmed_at", [None, ""])
+def test_email_por_confirmar_e_anonimo(monkeypatch, confirmed_at):
+    """Sessao valida mas email nunca confirmado (ou utilizador anonimo do Supabase)."""
+    respond(monkeypatch, 200, {"id": "u1", "email": "a@b.c", "email_confirmed_at": confirmed_at})
+    monkeypatch.setattr(db, "is_paid", lambda _uid: True)
+    assert auth.viewer_from_authorization("Bearer tok") == auth.ANONYMOUS
 
 
 class FakeTable:
@@ -89,24 +97,3 @@ class FakeTable:
 def test_is_paid_fail_closed(monkeypatch, fake, expected):
     monkeypatch.setattr(db, "client", lambda: fake)
     assert db.is_paid("u1") is expected
-
-
-def test_resposta_com_sessao_nunca_vai_para_a_cache_partilhada(monkeypatch):
-    from fastapi.testclient import TestClient
-
-    from api import index
-
-    monkeypatch.setattr(db, "load_models", lambda *a, **k: [])
-    monkeypatch.setattr(auth, "viewer_from_authorization", lambda _h: auth.ANONYMOUS)
-    client = TestClient(index.app)
-
-    anonimo = client.get("/api/models")
-    assert "s-maxage" in anonimo.headers["cache-control"]
-    assert anonimo.headers["vary"] == "Authorization"
-
-    com_sessao = client.get("/api/models", headers={"Authorization": "Bearer tok"})
-    assert com_sessao.headers["cache-control"] == "private, no-store"
-
-    me = client.get("/api/me")
-    assert me.headers["cache-control"] == "private, no-store"
-    assert me.json() == {"authenticated": False, "email": None, "is_paid": False}

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 
 import { Breakdown } from '@/components/Breakdown';
+import { RequireLogin } from '@/components/RequireLogin';
 import { ScoreGauge } from '@/components/ScoreGauge';
 import { ErrorState, LoadingGrid } from '@/components/StateView';
 import { TrendChart } from '@/components/TrendChart';
@@ -12,6 +13,14 @@ import { TONE_TEXT, formatNumber, toneOf } from '@/lib/score';
 import type { ModelDetail } from '@/lib/types';
 
 export function ModelDetailView({ id }: { id: string }) {
+  return (
+    <RequireLogin>
+      <DetailLoader id={id} />
+    </RequireLogin>
+  );
+}
+
+function DetailLoader({ id }: { id: string }) {
   const { t } = useTranslation();
   const { data, error, loading, reload } = useJson<ModelDetail>(`/api/models/${id}`);
 
