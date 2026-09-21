@@ -422,6 +422,12 @@ export function categoryLabel(locale: Locale, raw: string): string {
  *  e e como termo de mercado que ele aparece na pagina de detalhe. */
 const NAME_LABEL: Record<Locale, Dict> = {
   en: {
+    'Boneco Chibi': 'Chibi Figure',
+    'Figura de Anime': 'Anime Figure',
+    'Boneco Articulado Poses': 'Action Figure',
+    'Figura de Animal': 'Animal Figurine',
+    'Miniatura de Secretaria': 'Desk Figurine',
+    'Decoracao Kawaii': 'Kawaii Desk Decor',
     'Bandeja de Dados': 'Dice Tray',
     'Cenario de Mesa': 'Tabletop Terrain',
     'Estante de Miniaturas': 'Miniature Display Shelf',
@@ -475,6 +481,9 @@ const NAME_LABEL: Record<Locale, Dict> = {
     'Cortador de Biscoitos': 'Cookie Cutter Set',
   },
   pt: {
+    'Boneco Articulado Poses': 'Boneco Articulado',
+    'Miniatura de Secretaria': 'Miniatura de Secretária',
+    'Decoracao Kawaii': 'Decoração Kawaii',
     'Cenario de Mesa': 'Cenário de Mesa',
     'Estatua de Dragao': 'Estátua de Dragão',
     'Dragao Articulado': 'Dragão Articulado',
@@ -493,6 +502,12 @@ const NAME_LABEL: Record<Locale, Dict> = {
     'Clipe de Prateleira de Frigorifico': 'Clipe de Prateleira de Frigorífico',
   },
   es: {
+    'Boneco Chibi': 'Figura Chibi',
+    'Figura de Anime': 'Figura de Anime',
+    'Boneco Articulado Poses': 'Figura Articulada',
+    'Figura de Animal': 'Figura de Animal',
+    'Miniatura de Secretaria': 'Miniatura de Escritorio',
+    'Decoracao Kawaii': 'Decoración Kawaii',
     'Bandeja de Dados': 'Bandeja de Dados',
     'Cenario de Mesa': 'Escenario de Mesa',
     'Estante de Miniaturas': 'Estante de Miniaturas',

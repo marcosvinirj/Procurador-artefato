@@ -138,7 +138,7 @@ insert into models (name, category, keyword, synonyms) values
   ('Caixa de Cartas',                'geek', 'deck box',                '{"tcg deck box","trading card case"}'),
   ('Suporte de Katana',              'geek', 'katana stand',            '{"sword stand","katana display"}'),
   ('Capacete de Cosplay',            'geek', 'cosplay helmet',          '{"cosplay prop","wearable helmet"}'),
-  ('Suporte para Figuras',           'geek', 'figure display stand',    '{"figurine stand","anime figure stand"}'),
+  ('Suporte para Figuras',           'geek', 'figure display stand',    '{"figurine stand","figure holder"}'),
   ('Base de Luz LED',                'geek', 'led light base',          '{"acrylic light base","led display base"}'),
   ('Keycap Artesanal',               'geek', 'artisan keycap',          '{"custom keycap","keyboard keycap"}'),
   ('Estatua de Dragao',              'geek', 'fantasy dragon statue',   '{"dragon figurine","dragon sculpture"}'),
@@ -147,3 +147,15 @@ on conflict (keyword) do nothing;
 
 -- Dados de RPG sao geek, nao brinquedo: o score compara dentro da categoria.
 update models set category = 'geek' where keyword in ('dice tower', 'dice vault');
+
+-- Lote 4 (2026-09-21): os bonecos em si, por FORMATO. Um chibi ou uma action
+-- figure generica vende; o personagem com dono (Goku, Luffy, Marvel) e obra
+-- derivada e sai do Etsy. A keyword mede o mercado; a arte tem de ser original.
+insert into models (name, category, keyword, synonyms) values
+  ('Boneco Chibi',            'geek', 'chibi figure',     '{"chibi figurine","chibi statue"}'),
+  ('Figura de Anime',         'geek', 'anime figure',     '{"anime figurine","anime statue"}'),
+  ('Boneco Articulado Poses', 'geek', 'action figure',    '{"poseable figure","articulated action figure"}'),
+  ('Figura de Animal',        'geek', 'animal figurine',  '{"animal statue","cute animal figurine"}'),
+  ('Miniatura de Secretaria', 'geek', 'desk figurine',    '{"desk decor figurine","office desk statue"}'),
+  ('Decoracao Kawaii',        'geek', 'kawaii desk decor','{"cute desk decor","kawaii decor"}')
+on conflict (keyword) do nothing;
