@@ -129,6 +129,11 @@ sao genericas por categoria + cada ativo, e o cron diario roda-as (um bloco
 diferente por dia). A recolha processa ativos primeiro, depois
 arquivados e pendentes; rejeitados nao gastam cota.
 
+Ao aprovar um candidato, atencao a propriedade intelectual: um personagem com
+dono (Marvel, anime, jogos) nao se pode vender impresso — o Etsy remove o
+anuncio e pune a conta. O catalogo so tem acessorios genericos, inclusive na
+categoria `geek`.
+
 A regra de arquivamento e sequencial, nao de um dia isolado: precisa de 5 dias
 **seguidos** saturado (score < 45) para arquivar, e 5 dias seguidos recuperado
 para reativar — um unico dia ruidoso (a Etsy falhou, o Trends bloqueou) nao

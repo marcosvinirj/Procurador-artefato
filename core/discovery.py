@@ -29,6 +29,10 @@ CATEGORY_SEEDS = (
     ("3d printed kitchen", "utilidades"),
     ("3d printed desk accessories", "gadgets"),
     ("3d printed gaming accessories", "gadgets"),
+    ("3d printed anime", "geek"),
+    ("3d printed dnd", "geek"),
+    ("3d printed cosplay", "geek"),
+    ("3d printed miniatures", "geek"),
 )
 SOURCE = "google_trends_3d"
 # Candidatos de antes do filtro de impressao 3D: sem garantia de relevancia.

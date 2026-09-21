@@ -124,3 +124,26 @@ create trigger on_auth_user_created
 insert into public.profiles (id, email)
 select id, email from auth.users
 on conflict (id) do nothing;
+
+-- Lote 3 (2026-09-21): nicho geek/nerd/anime/filmes. So acessorios genericos —
+-- imprimir personagens com dono (Marvel, anime, jogos) e violacao de direito de
+-- autor: o Etsy remove o anuncio e pode punir a conta.
+insert into models (name, category, keyword, synonyms) values
+  ('Bandeja de Dados',               'geek', 'dice tray',               '{"dnd dice tray","dice rolling tray"}'),
+  ('Cenario de Mesa',                'geek', 'tabletop terrain',        '{"dnd terrain","wargame terrain","rpg terrain"}'),
+  ('Estante de Miniaturas',          'geek', 'miniature display shelf', '{"miniature shelf","figure shelf"}'),
+  ('Suporte para Pintar Miniaturas', 'geek', 'miniature painting handle','{"mini painting holder","hobby paint handle"}'),
+  ('Book Nook',                      'geek', 'book nook',               '{"book nook shelf insert","bookshelf diorama"}'),
+  ('Aparador de Livros',             'geek', 'manga bookend',           '{"comic bookend","book ends"}'),
+  ('Caixa de Cartas',                'geek', 'deck box',                '{"tcg deck box","trading card case"}'),
+  ('Suporte de Katana',              'geek', 'katana stand',            '{"sword stand","katana display"}'),
+  ('Capacete de Cosplay',            'geek', 'cosplay helmet',          '{"cosplay prop","wearable helmet"}'),
+  ('Suporte para Figuras',           'geek', 'figure display stand',    '{"figurine stand","anime figure stand"}'),
+  ('Base de Luz LED',                'geek', 'led light base',          '{"acrylic light base","led display base"}'),
+  ('Keycap Artesanal',               'geek', 'artisan keycap',          '{"custom keycap","keyboard keycap"}'),
+  ('Estatua de Dragao',              'geek', 'fantasy dragon statue',   '{"dragon figurine","dragon sculpture"}'),
+  ('Jogo de Xadrez',                 'geek', 'chess set',               '{"chess pieces","chess board set"}')
+on conflict (keyword) do nothing;
+
+-- Dados de RPG sao geek, nao brinquedo: o score compara dentro da categoria.
+update models set category = 'geek' where keyword in ('dice tower', 'dice vault');

@@ -392,12 +392,12 @@ const es: Dict = {
 
 const DICTS: Record<Locale, Dict> = { en, pt, es };
 
-/** So os 4 slugs fixos do seed. Uma categoria desconhecida cai no proprio slug
+/** So os slugs do seed (ver supabase/schema.sql). Uma categoria desconhecida cai no proprio slug
  *  em vez de rebentar — mesma filosofia do backend: nunca inventar, nunca falhar. */
 export const CATEGORY_LABEL: Record<Locale, Dict> = {
-  en: { brinquedos: 'Toys', decoracao: 'Decor', gadgets: 'Tech', utilidades: 'Utilities' },
-  pt: { brinquedos: 'Brinquedos', decoracao: 'Decoração', gadgets: 'Tech', utilidades: 'Utilidades' },
-  es: { brinquedos: 'Juguetes', decoracao: 'Decoración', gadgets: 'Tech', utilidades: 'Utilidades' },
+  en: { geek: 'Geek', brinquedos: 'Toys', decoracao: 'Decor', gadgets: 'Tech', utilidades: 'Utilities' },
+  pt: { geek: 'Geek', brinquedos: 'Brinquedos', decoracao: 'Decoração', gadgets: 'Tech', utilidades: 'Utilidades' },
+  es: { geek: 'Geek', brinquedos: 'Juguetes', decoracao: 'Decoración', gadgets: 'Tech', utilidades: 'Utilidades' },
 };
 
 export function categoryLabel(locale: Locale, raw: string): string {
@@ -413,6 +413,20 @@ export function categoryLabel(locale: Locale, raw: string): string {
  *  e e como termo de mercado que ele aparece na pagina de detalhe. */
 const NAME_LABEL: Record<Locale, Dict> = {
   en: {
+    'Bandeja de Dados': 'Dice Tray',
+    'Cenario de Mesa': 'Tabletop Terrain',
+    'Estante de Miniaturas': 'Miniature Display Shelf',
+    'Suporte para Pintar Miniaturas': 'Miniature Painting Handle',
+    'Book Nook': 'Book Nook',
+    'Aparador de Livros': 'Manga Bookends',
+    'Caixa de Cartas': 'Deck Box',
+    'Suporte de Katana': 'Katana Stand',
+    'Capacete de Cosplay': 'Cosplay Helmet',
+    'Suporte para Figuras': 'Figure Display Stand',
+    'Base de Luz LED': 'LED Light Base',
+    'Keycap Artesanal': 'Artisan Keycap',
+    'Estatua de Dragao': 'Dragon Statue',
+    'Jogo de Xadrez': 'Chess Set',
     'Polvo Articulado': 'Articulated Octopus',
     'Dragao Articulado': 'Articulated Dragon',
     'Axolote Flexi': 'Flexi Axolotl',
@@ -452,6 +466,8 @@ const NAME_LABEL: Record<Locale, Dict> = {
     'Cortador de Biscoitos': 'Cookie Cutter Set',
   },
   pt: {
+    'Cenario de Mesa': 'Cenário de Mesa',
+    'Estatua de Dragao': 'Estátua de Dragão',
     'Dragao Articulado': 'Dragão Articulado',
     'Tubarao Flexi': 'Tubarão Flexi',
     'Painel Geometrico de Parede': 'Painel Geométrico de Parede',
@@ -468,6 +484,20 @@ const NAME_LABEL: Record<Locale, Dict> = {
     'Clipe de Prateleira de Frigorifico': 'Clipe de Prateleira de Frigorífico',
   },
   es: {
+    'Bandeja de Dados': 'Bandeja de Dados',
+    'Cenario de Mesa': 'Escenario de Mesa',
+    'Estante de Miniaturas': 'Estante de Miniaturas',
+    'Suporte para Pintar Miniaturas': 'Soporte para Pintar Miniaturas',
+    'Book Nook': 'Book Nook',
+    'Aparador de Livros': 'Sujetalibros',
+    'Caixa de Cartas': 'Caja de Cartas',
+    'Suporte de Katana': 'Soporte de Katana',
+    'Capacete de Cosplay': 'Casco de Cosplay',
+    'Suporte para Figuras': 'Soporte para Figuras',
+    'Base de Luz LED': 'Base de Luz LED',
+    'Keycap Artesanal': 'Keycap Artesanal',
+    'Estatua de Dragao': 'Estatua de Dragón',
+    'Jogo de Xadrez': 'Juego de Ajedrez',
     'Polvo Articulado': 'Pulpo Articulado',
     'Dragao Articulado': 'Dragón Articulado',
     'Axolote Flexi': 'Ajolote Flexible',
