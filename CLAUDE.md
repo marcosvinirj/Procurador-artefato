@@ -115,9 +115,16 @@ de revisao) → `active` ou `rejected` (decisao humana) → `active` pode virar
 se recuperar. Nunca se apaga uma linha: `archived` so deixa de aparecer no
 ranking publico, o historico fica intacto e o link direto ainda abre.
 
-A descoberta (`core/discovery.py`) so aceita o que as pessoas pesquisam como
+A descoberta (`core/discovery.py`) le o **autocompletar do Google**
+(`suggestqueries`), nao as "pesquisas relacionadas" do Trends: estas devolvem
+vazio para termos de nicho e lixo generico para termos populares, e por isso a
+descoberta nunca propunha nada. (A direcao da procura continua a vir do Trends,
+em `core/sources.py`, que funciona.) So aceita o que as pessoas pesquisam como
 impressao 3D: toda a semente comeca por "3d printed" e a consulta devolvida tem
 de falar de impressao 3D (sem isto vinha "iphone 18" a partir de "phone case").
+Descarta perguntas, lojas, sites, paises e consultas de uma palavra so
+(categoria, nao produto). O admin pode disparar tudo isto a mao, no botao
+"Procurar agora" (`POST /api/admin/discover`), sem esperar pelo cron.
 Guarda o produto sem esse prefixo, como as keywords existentes. Nunca propoe uma
 variacao de algo ja conhecido, em qualquer estado: compara as palavras que
 identificam o produto (singular, sem enfeites, sem numeros de modelo, com

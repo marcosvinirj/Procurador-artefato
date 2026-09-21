@@ -28,6 +28,7 @@ def calls(monkeypatch):
     log: list[tuple] = []
     monkeypatch.setattr(db, "set_paid", lambda uid, paid: log.append(("paid", uid, paid)) or uid == USER_ID)
     monkeypatch.setattr(db, "update_model", lambda mid, **fields: log.append(("model", mid, fields)))
+    monkeypatch.setattr(db, "insert_candidates", lambda rows: log.append(("candidates", rows)))
     return log
 
 
@@ -41,6 +42,7 @@ ROUTES = [
     ("get", "/api/candidates", None),
     ("post", f"/api/admin/users/{USER_ID}", {"is_paid": True}),
     ("post", "/api/candidates/00000000-0000-0000-0000-000000000000", {"action": "reject"}),
+    ("post", "/api/admin/discover", None),
 ]
 
 

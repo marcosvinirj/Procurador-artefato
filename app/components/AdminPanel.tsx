@@ -46,6 +46,21 @@ function Admin() {
   const candidates = useJson<{ candidates: Candidate[] }>('/api/candidates');
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [found, setFound] = useState<{ added: number; rejected: number } | null>(null);
+
+  async function searchNow() {
+    setFound(null);
+    await act('search', async () => {
+      const result = await postJson<{ candidates_proposed: number; duplicates_rejected: number }>(
+        '/api/admin/discover',
+        {},
+      );
+      setFound({ added: result.candidates_proposed, rejected: result.duplicates_rejected });
+    }, () => {
+      candidates.reload();
+      overview.reload();
+    });
+  }
 
   async function act(id: string, request: () => Promise<unknown>, reload: () => void) {
     setBusy(id);
@@ -159,10 +174,25 @@ function Admin() {
       </section>
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-50">{t('admin.candidates.title')}</h2>
-          <p className="text-sm text-muted">{t('admin.candidates.hint')}</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-50">{t('admin.candidates.title')}</h2>
+            <p className="text-sm text-muted">{t('admin.candidates.hint')}</p>
+          </div>
+          <button
+            type="button"
+            disabled={busy === 'search'}
+            onClick={() => void searchNow()}
+            className="btn-ghost px-4 py-2"
+          >
+            {busy === 'search' ? t('admin.candidates.searching') : t('admin.candidates.search')}
+          </button>
         </div>
+        {found && (
+          <p role="status" className="font-mono text-[11px] text-open">
+            {t('admin.candidates.found', { added: found.added, rejected: found.rejected })}
+          </p>
+        )}
         {candidates.error && <ErrorState error={candidates.error} onRetry={candidates.reload} />}
         {!candidates.error && pending.length === 0 && (
           <p className="panel px-4 py-6 text-sm text-muted">

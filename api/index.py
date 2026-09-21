@@ -296,19 +296,15 @@ def lifecycle_route() -> dict[str, Any]:
     return {"lifecycle_changes": _apply_lifecycle()}
 
 
-@app.get("/api/discover", dependencies=[Depends(require_cron)])
-def discover(
-    offset: Annotated[int | None, Query(ge=0)] = None,
-    limit: Annotated[int, Query(ge=1, le=25)] = 5,
-) -> dict[str, Any]:
-    """Propoe candidatos novos. Nunca fica publico sozinho — entra como
-    'pending', so visivel em /api/candidates ate alguem aprovar.
+def _discover(offset: int | None, limit: int) -> dict[str, Any]:
+    """Procura produtos novos e limpa os pendentes que nao servem. Usada pelo
+    cron diario e pelo botao do painel de admin.
 
     So aceita o que as pessoas pesquisam como impressao 3D ("3d printed ..."),
     nunca uma variacao de algo ja conhecido ("aquarius moon lamp" com "moon
-    lamp" no ranking), e rejeita de vez os pendentes que falham nisto.
-    Sem `offset` (o cron diario) as sementes rodam: cada dia um bloco
-    diferente, em vez de explorar sempre os mesmos produtos."""
+    lamp" no ranking), e rejeita de vez os pendentes que falham nisto. Sem
+    `offset` (o cron diario) as sementes rodam: cada dia um bloco diferente,
+    em vez de explorar sempre os mesmos produtos."""
     rows = db.fetch_model_rows()
     pending = [r for r in rows if r["status"] == db.PENDING]
     duplicates = discovery.rejectable(pending, [r for r in rows if r["status"] != db.PENDING])
@@ -329,7 +325,7 @@ def discover(
             if time.monotonic() >= deadline:
                 break
             added = 0
-            for query in discovery.related_terms(client, term):
+            for query in discovery.suggested_terms(client, term):
                 if added == DISCOVER_PER_SEED:
                     break
                 product = discovery.product_term(query)
@@ -360,6 +356,22 @@ def discover(
         "candidates_proposed": len(candidates),
         "next_offset": offset + processed if incomplete else None,
     }
+
+
+@app.get("/api/discover", dependencies=[Depends(require_cron)])
+def discover(
+    offset: Annotated[int | None, Query(ge=0)] = None,
+    limit: Annotated[int, Query(ge=1, le=25)] = 5,
+) -> dict[str, Any]:
+    """Cron diario. Nunca publica sozinho: o candidato entra como 'pending' e so
+    fica visivel em /api/models depois de aprovado em /api/candidates."""
+    return _discover(offset, limit)
+
+
+@app.post("/api/admin/discover", dependencies=[Depends(require_admin)])
+def discover_now(limit: Annotated[int, Query(ge=1, le=25)] = 5) -> dict[str, Any]:
+    """O mesmo, a pedido do admin, sem esperar pelo cron."""
+    return _discover(None, limit)
 
 
 @app.get("/api/candidates", dependencies=[Depends(require_admin)])

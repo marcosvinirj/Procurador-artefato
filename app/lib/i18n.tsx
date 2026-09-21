@@ -12,6 +12,9 @@ const STORAGE_KEY = 'trendprint.locale';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'admin.candidates.search': 'Search now',
+  'admin.candidates.searching': 'Searching…',
+  'admin.candidates.found': '{{added}} new, {{rejected}} repeats removed.',
   'scale.caption': "Every product gets a daily score: buying demand weighed against competition, plus trend and margin. Green means there's still room to sell.",
   'scale.title': 'Opportunity score',
   'login.hide': 'Hide',
@@ -129,7 +132,7 @@ const en: Dict = {
   'admin.plan.paid': 'Paid',
   'admin.candidates.title': 'Products awaiting review',
   'admin.candidates.hint':
-    'Found automatically in Google Trends. Approved ones join the ranking; rejected ones are never suggested again.',
+    'Found automatically in what people search on Google. Approved ones join the ranking; rejected ones are never suggested again.',
   'admin.candidates.empty': 'Nothing to review right now.',
   'admin.candidates.approve': 'Approve',
   'admin.candidates.reject': 'Reject',
@@ -138,6 +141,9 @@ const en: Dict = {
 };
 
 const pt: Dict = {
+  'admin.candidates.search': 'Procurar agora',
+  'admin.candidates.searching': 'A procurar…',
+  'admin.candidates.found': '{{added}} novos, {{rejected}} repetidos removidos.',
   'scale.caption': 'Cada produto recebe um score diário: procura de compra contra concorrência, mais tendência e margem. Verde quer dizer que ainda há espaço para vender.',
   'scale.title': 'Score de oportunidade',
   'login.hide': 'Ocultar',
@@ -255,7 +261,7 @@ const pt: Dict = {
   'admin.plan.paid': 'Pago',
   'admin.candidates.title': 'Produtos à espera de revisão',
   'admin.candidates.hint':
-    'Encontrados automaticamente no Google Trends. Os aprovados entram no ranking; os rejeitados não voltam a ser sugeridos.',
+    'Encontrados automaticamente no que as pessoas pesquisam no Google. Os aprovados entram no ranking; os rejeitados não voltam a ser sugeridos.',
   'admin.candidates.empty': 'Nada para rever agora.',
   'admin.candidates.approve': 'Aprovar',
   'admin.candidates.reject': 'Rejeitar',
@@ -264,6 +270,9 @@ const pt: Dict = {
 };
 
 const es: Dict = {
+  'admin.candidates.search': 'Buscar ahora',
+  'admin.candidates.searching': 'Buscando…',
+  'admin.candidates.found': '{{added}} nuevos, {{rejected}} repetidos eliminados.',
   'scale.caption': 'Cada producto recibe un puntaje diario: demanda de compra frente a competencia, más tendencia y margen. Verde significa que aún hay espacio para vender.',
   'scale.title': 'Puntaje de oportunidad',
   'login.hide': 'Ocultar',
@@ -382,7 +391,7 @@ const es: Dict = {
   'admin.plan.paid': 'De pago',
   'admin.candidates.title': 'Productos pendientes de revisión',
   'admin.candidates.hint':
-    'Encontrados automáticamente en Google Trends. Los aprobados entran en el ranking; los rechazados no se vuelven a sugerir.',
+    'Encontrados automáticamente en lo que la gente busca en Google. Los aprobados entran en el ranking; los rechazados no se vuelven a sugerir.',
   'admin.candidates.empty': 'Nada que revisar por ahora.',
   'admin.candidates.approve': 'Aprobar',
   'admin.candidates.reject': 'Rechazar',

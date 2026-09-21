@@ -14,8 +14,7 @@ from typing import Any, Iterable, Sequence
 
 import httpx
 
-TRENDS_EXPLORE = "https://trends.google.com/trends/api/explore"
-TRENDS_RELATED = "https://trends.google.com/trends/api/widgetdata/relatedsearches"
+SUGGEST_URL = "https://suggestqueries.google.com/complete/search"
 
 # Toda a busca parte de "3d printed ...": o Google devolve o que as pessoas
 # pesquisam JUNTO com o termo, e sem isto vinha de tudo ("iphone 18" a partir
@@ -34,18 +33,40 @@ CATEGORY_SEEDS = (
     ("3d printed cosplay", "geek"),
     ("3d printed miniatures", "geek"),
 )
-SOURCE = "google_trends_3d"
-# Candidatos de antes do filtro de impressao 3D: sem garantia de relevancia.
-LEGACY_SOURCE = "google_trends_related"
+SOURCE = "google_suggest"
+# Fontes antigas: sem filtro de impressao 3D (google_trends_related) ou de uma
+# fonte que devolvia vazio (google_trends_3d). Os pendentes delas sao rejeitados.
+LEGACY_SOURCES = frozenset({"google_trends_related", "google_trends_3d"})
 
-PRINT_WORDS = frozenset("3d printed print prints printing printer printers".split())
+PRINT_WORDS = frozenset("3d printed printable print prints printing printer printers".split())
+# Basta uma destas para a consulta nao ser um produto: pergunta, loja, site,
+# pais ou tutorial ("how to paint miniatures", "toys amazon", "miniatures uk").
+JUNK = frozenset(
+    """how what why when where which who whose vs versus meaning worth safe legal tutorial guide
+    review reviews software slicer filament settings profile business money sell selling shop store
+    amazon etsy reddit thingiverse printables makerworld cults ebay temu aliexpress walmart shein
+    can do does is are you your my i make making paint painting largest biggest smallest most popular
+    famous common useful practical
+    uk usa us australia canada india china europe germany japan brasil brazil singapore nz zealand
+    ireland africa philippines malaysia mexico spain france italy kmart target ikea costco wish
+    sale price near""".split()
+)
 # Enfeite de pesquisa: sai do nome guardado ("best 3d printed dragon stl" -> "dragon").
-FILLER = frozenset("stl file files free diy custom best cool cute easy cheap top idea ideas near me".split())
+FILLER = frozenset(
+    """stl file files free diy custom best cool cute easy cheap top idea ideas me
+    item items product products stuff thing things design designs model models project projects
+    accessory accessories system setup""".split()
+)
 GRAMMAR = frozenset("for the a an and with of to in on".split())
 # Palavras que nao distinguem um produto de outro (so para comparar).
-NOISE = PRINT_WORDS | FILLER | GRAMMAR | frozenset("gift gifts kid kids him her men women".split())
+NOISE = PRINT_WORDS | FILLER | GRAMMAR | JUNK | frozenset(
+    "gift gifts kid kids him her men women boy boys girl girls adult adults beginner beginners teen teens".split()
+)
 # O mesmo objeto com outro nome: "iphone 18 case" e uma "phone case".
-ALIASES = {"iphone": "phone", "smartphone": "phone", "cellphone": "phone", "airpod": "earbud"}
+ALIASES = {
+    "iphone": "phone", "smartphone": "phone", "cellphone": "phone", "cell": "phone",
+    "airpod": "earbud", "earphone": "earbud", "flexible": "flexi", "mini": "miniature",
+}
 
 
 def _word(word: str) -> str:
@@ -71,12 +92,17 @@ def product_term(query: str) -> str | None:
     words = re.findall(r"[a-z0-9]+", query.lower())
     if "3d" not in words or not any(w.startswith("print") for w in words):
         return None
+    if JUNK & set(words):
+        return None
     words = [w for w in words if w not in PRINT_WORDS and w not in FILLER]
     while words and words[0] in GRAMMAR:
         words.pop(0)
     while words and words[-1] in GRAMMAR:
         words.pop()
-    return " ".join(words) or None
+    product = " ".join(words)
+    # Uma palavra so e categoria, nao produto ("office", "table"): nao serve de
+    # termo de mercado. Os produtos de uma palavra entram a mao, no seed.
+    return product if len(tokens(product)) >= 2 else None
 
 
 def is_variant(term: str, known: Iterable[frozenset[str]]) -> bool:
@@ -100,47 +126,35 @@ def seeds(rows: Sequence[dict[str, Any]]) -> list[tuple[str, str]]:
 
 
 def rejectable(pending: Sequence[dict[str, Any]], others: Sequence[dict[str, Any]]) -> list[str]:
-    """Ids dos pendentes a rejeitar: os da busca antiga (sem filtro de impressao
-    3D) e os que repetem algo ja conhecido ou outro pendente mais generico —
-    entre dois, fica o de menos palavras (e, no empate, o mais curto)."""
+    """Ids dos pendentes a rejeitar: os das fontes antigas e os que repetem algo
+    ja conhecido, ou outro pendente mais generico — entre dois, fica o de menos
+    palavras (e, no empate, o mais curto)."""
     known = known_terms(others)
     ids = []
     for row in sorted(pending, key=lambda r: (len(tokens(r["keyword"])), len(r["keyword"]))):
-        if row.get("source") == LEGACY_SOURCE or is_variant(row["keyword"], known):
+        if row.get("source") in LEGACY_SOURCES or is_variant(row["keyword"], known):
             ids.append(row["id"])
         else:
             known.append(tokens(row["keyword"]))
     return ids
 
 
-def related_terms(client: httpx.Client, seed: str, limit: int = 10) -> list[str]:
-    """Consultas relacionadas ao `seed` no Google Trends, priorizando as "em
-    ascensao" (mercado a nascer, nao um pico ja capturado por todos). Sem
-    ascensao suficiente, cai para as mais fortes. Mesmo endpoint publico e sem
-    chave que ja usamos para a tendencia — falha isolada, devolve [] em silencio.
+def suggested_terms(client: httpx.Client, seed: str, limit: int = 10) -> list[str]:
+    """O que as pessoas escrevem a seguir a `seed` no Google (autocompletar).
+
+    Substituiu as "pesquisas relacionadas" do Trends, que devolvem vazio para
+    termos de nicho ("moon lamp", "3d printed dnd") e lixo generico para termos
+    muito populares — por isso a descoberta nunca propunha nada. A direcao da
+    procura continua a vir do Trends, em core/sources.py, que funciona.
+
+    Endpoint publico, sem chave. Falha isolada: devolve [] em silencio.
     """
-    request = {
-        "comparisonItem": [{"keyword": seed, "geo": "US", "time": "today 3-m"}],
-        "category": 0,
-        "property": "",
-    }
     try:
-        explore = client.get(TRENDS_EXPLORE, params={"hl": "en-US", "tz": "0", "req": json.dumps(request)})
-        explore.raise_for_status()
-        widgets = json.loads(explore.text[4:])["widgets"]
-        widget = next(w for w in widgets if w.get("id") == "RELATED_QUERIES")
-
-        related = client.get(
-            TRENDS_RELATED,
-            params={"hl": "en-US", "tz": "0", "req": json.dumps(widget["request"]), "token": widget["token"]},
+        response = client.get(
+            SUGGEST_URL, params={"client": "firefox", "hl": "en", "q": f"{seed} "}
         )
-        related.raise_for_status()
-        ranked_lists = json.loads(related.text[5:])["default"]["rankedList"]
-    except (httpx.HTTPError, ValueError, KeyError, IndexError, StopIteration):
+        response.raise_for_status()
+        suggestions = json.loads(response.text)[1]
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
         return []
-
-    # rankedList[0] = "top", rankedList[1] = "rising" quando existe.
-    rising = ranked_lists[1]["rankedKeyword"] if len(ranked_lists) > 1 else []
-    top = ranked_lists[0]["rankedKeyword"] if ranked_lists else []
-    queries = [k["query"] for k in (rising or top) if isinstance(k.get("query"), str)]
-    return queries[:limit]
+    return [s for s in suggestions if isinstance(s, str)][:limit]
