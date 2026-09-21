@@ -148,14 +148,23 @@ on conflict (keyword) do nothing;
 -- Dados de RPG sao geek, nao brinquedo: o score compara dentro da categoria.
 update models set category = 'geek' where keyword in ('dice tower', 'dice vault');
 
--- Lote 4 (2026-09-21): os bonecos em si, por FORMATO. Um chibi ou uma action
--- figure generica vende; o personagem com dono (Goku, Luffy, Marvel) e obra
--- derivada e sai do Etsy. A keyword mede o mercado; a arte tem de ser original.
+-- Lote 4 (2026-09-21): o boneco em si, sempre por FORMATO e dentro do mundo
+-- anime. O estilo (chibi, kitsune) nao tem dono; o personagem tem — um Goku ou
+-- a raposa do Naruto impressos sao obra derivada e saem do Etsy.
 insert into models (name, category, keyword, synonyms) values
-  ('Boneco Chibi',            'geek', 'chibi figure',     '{"chibi figurine","chibi statue"}'),
-  ('Figura de Anime',         'geek', 'anime figure',     '{"anime figurine","anime statue"}'),
-  ('Boneco Articulado Poses', 'geek', 'action figure',    '{"poseable figure","articulated action figure"}'),
-  ('Figura de Animal',        'geek', 'animal figurine',  '{"animal statue","cute animal figurine"}'),
-  ('Miniatura de Secretaria', 'geek', 'desk figurine',    '{"desk decor figurine","office desk statue"}'),
-  ('Decoracao Kawaii',        'geek', 'kawaii desk decor','{"cute desk decor","kawaii decor"}')
+  ('Boneco Chibi',       'geek', 'chibi figure',   '{"chibi figurine","chibi statue"}'),
+  ('Figura de Anime',    'geek', 'anime figure',   '{"anime figurine","anime statue"}'),
+  ('Busto de Anime',     'geek', 'anime bust',     '{"anime bust statue","character bust"}'),
+  ('Chaveiro de Anime',  'geek', 'anime keychain', '{"anime charm","chibi keychain"}'),
+  ('Candeeiro de Anime', 'geek', 'anime lamp',     '{"anime light box","acrylic anime lamp"}'),
+  ('Mascara Kitsune',    'geek', 'kitsune mask',   '{"fox mask","oni mask","japanese mask"}'),
+  ('Diorama de Anime',   'geek', 'anime diorama',  '{"anime scene diorama","anime display diorama"}')
 on conflict (keyword) do nothing;
+
+-- "anime figure stand" saiu dos sinonimos do suporte: continha "anime figure" e
+-- bloqueava o proprio boneco. Idempotente.
+update models set synonyms = '{"figurine stand","figure holder"}' where keyword = 'figure display stand';
+
+-- Genericos demais para este nicho (entraram por engano numa versao anterior
+-- deste ficheiro). Apagar, nao arquivar: nunca chegaram a ser produto nosso.
+delete from models where keyword in ('animal figurine', 'desk figurine', 'kawaii desk decor', 'action figure');
