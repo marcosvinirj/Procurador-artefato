@@ -172,4 +172,4 @@ todos os dias). Separado, tem os seus ~10s e nao depende disso.
 | concorrencia + margem (fallback) | eBay Browse API (`item_summary/search`) | real, exige `EBAY_CLIENT_ID`/`EBAY_CLIENT_SECRET` |
 | direcao da procura | Google Trends (endpoint publico) | real, sem chave, pode ser bloqueado |
 | direcao da procura (fallback) | YouTube Data API v3 (visualizacoes) | real, exige `YOUTUBE_API_KEY`, quota gratuita 10k/dia |
-| procura de compra | ritmo de reviews no topo | **stub** — `review_velocity` devolve `None` |
+| procura de compra | Etsy API v3 (`listings/{id}/reviews`) | real, usa `ETSY_API_KEY`; avaliacoes dos ultimos 30 dias na listagem lider, em banda 0..100 |

@@ -26,6 +26,7 @@ MAX_TERMS = 2
 USER_AGENT = "TrendPrint/1.0 (+https://github.com/trendprint)"
 
 ETSY_ENDPOINT = "https://openapi.etsy.com/v3/application/listings/active"
+ETSY_LISTING_REVIEWS_ENDPOINT = "https://openapi.etsy.com/v3/application/listings/{listing_id}/reviews"
 TRENDS_EXPLORE = "https://trends.google.com/trends/api/explore"
 TRENDS_TIMESERIES = "https://trends.google.com/trends/api/widgetdata/multiline"
 EBAY_TOKEN_ENDPOINT = "https://api.ebay.com/identity/v1/oauth2/token"
@@ -48,18 +49,26 @@ def terms_for(model: dict[str, Any]) -> list[str]:
     return [model["keyword"], *synonyms][:MAX_TERMS]
 
 
-def etsy_market(client: httpx.Client, terms: Sequence[str]) -> tuple[float | None, float | None]:
-    """Saturacao (nr. de listagens ativas) e proxy de margem (preco mediano do topo).
+def etsy_market(client: httpx.Client, terms: Sequence[str]) -> tuple[float | None, float | None, str | None]:
+    """Saturacao (nr. de listagens ativas), proxy de margem (preco mediano do
+    topo) e o id da listagem lider do termo mais concorrido.
+
+    Esse terceiro valor nao serve para saturacao nem margem: e reaproveitado
+    por review_velocity, que precisa de uma listagem concreta para perguntar
+    "quantas avaliacoes novas". Devolve-lo daqui poupa uma segunda busca (o
+    orcamento do cron e ~10s); ir com o termo mais saturado, nao o mais
+    barato, mantem o mesmo criterio de "lider" usado para concorrencia.
 
     Requer ETSY_API_KEY (endpoint app-level da API v3, sem OAuth). Sem chave
-    devolve (None, None) — o sinal fica em falta, nao a zero.
+    devolve (None, None, None) — o sinal fica em falta, nao a zero.
     """
     key = os.environ.get("ETSY_API_KEY")
     if not key:
-        return None, None
+        return None, None, None
 
     best_count: float | None = None
     best_price: float | None = None
+    best_listing_id: str | None = None
     for term in terms:
         try:
             response = client.get(
@@ -78,8 +87,16 @@ def etsy_market(client: httpx.Client, terms: Sequence[str]) -> tuple[float | Non
         # O termo mais saturado manda: e o piso real de concorrencia do produto.
         if best_count is None or count > best_count:
             best_count = float(count)
-            best_price = _median_price(payload.get("results") or [])
-    return best_count, best_price
+            results = payload.get("results") or []
+            best_price = _median_price(results)
+            best_listing_id = _top_listing_id(results)
+    return best_count, best_price, best_listing_id
+
+
+def _top_listing_id(listings: Sequence[dict[str, Any]]) -> str | None:
+    """results[0]: o topo do sort_on=score, a listagem mais relevante da busca."""
+    listing_id = listings[0].get("listing_id") if listings else None
+    return str(listing_id) if listing_id is not None else None
 
 
 def _median_price(listings: Sequence[dict[str, Any]]) -> float | None:
@@ -300,25 +317,57 @@ def _views_to_band(views: int) -> float:
     return min(100.0, math.log10(views + 1) / YOUTUBE_BAND_CEILING_LOG * 100.0)
 
 
-def review_velocity(client: httpx.Client, terms: Sequence[str]) -> float | None:
-    """Procura de compra real: ritmo de avaliacoes novas nas listagens de topo.
+REVIEW_WINDOW_DAYS = 30
+# A maioria das listagens leva 0-20 avaliacoes/mes; poucas, centenas. Log10,
+# mesma familia do _views_to_band, para um outlier nao decidir sozinho a
+# categoria. 200/mes no topo da banda: acima disso ja e um best-seller claro.
+REVIEW_BAND_CEILING_LOG = 2.3  # log10(200)
 
-    POR LIGAR — exige OAuth Etsy e uma chamada por listagem, o que nao cabe no
-    orcamento de 10s do cron. Devolve None de proposito: melhor um sinal em
-    falta do que um numero inventado.
+
+def _reviews_to_band(count: int) -> float:
+    return min(100.0, math.log10(count + 1) / REVIEW_BAND_CEILING_LOG * 100.0)
+
+
+def review_velocity(client: httpx.Client, listing_id: str | None) -> float | None:
+    """Procura de compra real: avaliacoes novas na listagem lider do termo, nos
+    ultimos REVIEW_WINDOW_DAYS dias. Quem avalia, comprou — diferente do Trends
+    (intencao de pesquisa) e do YouTube (atencao passiva), que so servem de
+    proxy quando este falta.
+
+    Recebe o listing_id que etsy_market ja obteve, nao os termos: pedir uma
+    listagem concreta e uma segunda busca por keyword custariam dois pedidos
+    Etsy por termo em vez de um. Requer ETSY_API_KEY (endpoint app-level da
+    API v3 de avaliacoes por listagem, sem OAuth — a mesma chave do
+    etsy_market). Sem listagem (Etsy indisponivel ou termo sem resultados) ou
+    sem chave, devolve None: falta de sinal, nao zero. Zero avaliacoes na
+    janela e um dado real (0.0) — a listagem existe, so nao vendeu no periodo.
     """
-    return None
+    key = os.environ.get("ETSY_API_KEY")
+    if not key or not listing_id:
+        return None
+    since = int(time.time()) - REVIEW_WINDOW_DAYS * 86400
+    try:
+        response = client.get(
+            ETSY_LISTING_REVIEWS_ENDPOINT.format(listing_id=listing_id),
+            params={"limit": 1, "min_created": since},
+            headers={"x-api-key": key},
+        )
+        response.raise_for_status()
+        count = response.json().get("count")
+    except (httpx.HTTPError, ValueError):
+        return None
+    return _reviews_to_band(int(count)) if isinstance(count, (int, float)) else None
 
 
 def collect(model: dict[str, Any], client: httpx.Client) -> Signal:
     """Compoe os conectores num sinal. Um conector que falhe nao afeta os outros."""
     terms = terms_for(model)
-    competition, margin = etsy_market(client, terms)
+    competition, margin, listing_id = etsy_market(client, terms)
     if competition is None or margin is None:
         ebay_competition, ebay_margin = ebay_market(client, terms)  # fallback quando o Etsy falta
         competition = ebay_competition if competition is None else competition
         margin = ebay_margin if margin is None else margin
-    demand = review_velocity(client, terms)
+    demand = review_velocity(client, listing_id)
     if demand is None:
         demand = google_trends_interest(client, terms)  # proxy enquanto o real nao liga
     if demand is None:
