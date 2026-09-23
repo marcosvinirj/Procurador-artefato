@@ -21,6 +21,13 @@ export function Header() {
         </Link>
         <div className="ml-auto flex items-center gap-3">
           <p className="hidden font-mono text-[11px] text-muted sm:block">{t('header.tagline')}</p>
+          {/* No telemovel nao cabe ao lado de Admin/Sair; la chega-se pelas boas-vindas e pelo login. */}
+          <Link
+            href="/how-it-works"
+            className="hidden font-mono text-[11px] uppercase tracking-wider text-muted transition hover:text-open sm:inline"
+          >
+            {t('header.how')}
+          </Link>
           <LanguageSwitcher />
           {isAdmin && (
             <Link

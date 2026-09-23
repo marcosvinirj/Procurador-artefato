@@ -29,6 +29,9 @@ function Welcome() {
           {t('page.heading')}
         </h1>
         <p className="mx-auto max-w-lg text-base leading-relaxed text-muted">{t('welcome.body')}</p>
+        <Link href="/how-it-works" className="inline-block text-sm font-medium text-open hover:underline">
+          {t('how.teaser')}
+        </Link>
       </div>
       {available ? (
         <div className="flex flex-wrap justify-center gap-3">

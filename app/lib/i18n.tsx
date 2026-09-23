@@ -12,6 +12,8 @@ const STORAGE_KEY = 'trendprint.locale';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'header.how': 'How it works',
+  'how.teaser': 'How do we know what sells? →',
   'plan.name.free': 'Free',
   'plan.name.pro': 'Pro',
   'plan.name.premium': 'Premium',
@@ -168,6 +170,8 @@ const en: Dict = {
 };
 
 const pt: Dict = {
+  'header.how': 'Como funciona',
+  'how.teaser': 'Como sabemos o que vende? →',
   'plan.name.free': 'Grátis',
   'plan.name.pro': 'Pro',
   'plan.name.premium': 'Premium',
@@ -324,6 +328,8 @@ const pt: Dict = {
 };
 
 const es: Dict = {
+  'header.how': 'Cómo funciona',
+  'how.teaser': '¿Cómo sabemos qué se vende? →',
   'plan.name.free': 'Gratis',
   'plan.name.pro': 'Pro',
   'plan.name.premium': 'Premium',

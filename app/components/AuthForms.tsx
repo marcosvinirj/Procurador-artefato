@@ -202,6 +202,9 @@ function AuthShell({
       <aside className="flex flex-col items-center justify-center gap-6 rounded-xl border border-edge bg-ink/60 p-6 sm:p-10 lg:rounded-l-none lg:border-l-0">
         <OpportunityScale />
         <p className="max-w-xs text-center text-xs leading-relaxed text-muted">{t('scale.caption')}</p>
+        <Link href="/how-it-works" className="text-sm font-medium text-open hover:underline">
+          {t('how.teaser')}
+        </Link>
       </aside>
     </div>
   );
