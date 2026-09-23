@@ -77,3 +77,115 @@
     transform: rotate(0deg);
   }
 }
+
+/* Pagina "Como funciona": cada bloco anima quando entra no ecra (data-visible,
+   posto por useInView). Os atrasos vem inline, em style. Sem movimento pedido
+   pelo sistema, tudo aparece ja no estado final. */
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .reveal[data-visible='true'] {
+    opacity: 1;
+    transform: none;
+  }
+  /* Parado ate o bloco aparecer; so ai a animacao corre. */
+  [data-visible='true'] :is(.anim-pop, .anim-lit, .anim-grow-x, .anim-grow-y, .anim-draw) {
+    animation-play-state: running;
+  }
+  .anim-pop {
+    animation: pop 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.5) both paused;
+  }
+  .anim-lit {
+    animation: lit 0.35s ease both paused;
+  }
+  .anim-grow-x {
+    transform-origin: left;
+    animation: grow-x 1s cubic-bezier(0.2, 0.8, 0.2, 1) both paused;
+  }
+  .anim-grow-y {
+    transform-origin: bottom;
+    animation: grow-y 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both paused;
+  }
+  .anim-draw {
+    /* precisa de pathLength="1" no SVG */
+    stroke-dasharray: 1;
+    animation: draw 1.4s ease-out both paused;
+  }
+  .anim-caret {
+    animation: caret 1s steps(1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .anim-pop,
+    .anim-lit,
+    .anim-grow-x,
+    .anim-grow-y,
+    .anim-draw,
+    .anim-caret {
+      animation: none;
+    }
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes lit {
+  from {
+    opacity: 0.12;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}

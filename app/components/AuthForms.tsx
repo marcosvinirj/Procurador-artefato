@@ -10,6 +10,10 @@ import { useTranslation } from '@/lib/i18n';
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
+/** Email escrito na pagina "Como funciona", entregue ao cadastro sem passar
+ *  pelo link (ver HowItWorks). Le-se uma vez e apaga-se. */
+export const SIGNUP_EMAIL_KEY = 'trendprint.signup_email';
+
 /** Codigos do Supabase com mensagem propria; o resto cai no generico. */
 const ERROR_KEY: Record<string, string> = {
   invalid_credentials: 'login.error.invalid_credentials',
@@ -45,6 +49,16 @@ export function LoginForm({ initial }: { initial: Mode }) {
   const [password, setPassword] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const { busy, error, setError, submit } = useSubmit();
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(SIGNUP_EMAIL_KEY);
+      if (saved) setEmail(saved.slice(0, 254));
+      window.sessionStorage.removeItem(SIGNUP_EMAIL_KEY);
+    } catch {
+      // sem sessionStorage: o campo so vem vazio
+    }
+  }, []);
 
   // Com sessao (acabou de entrar, ou voltou do link de confirmacao): catalogo.
   useEffect(() => {

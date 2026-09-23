@@ -3,13 +3,16 @@ import type { Metadata } from 'next';
 import { Header } from '@/components/Header';
 import { AuthProvider } from '@/lib/auth';
 import { LanguageProvider } from '@/lib/i18n';
+import { SITE_URL } from '@/lib/site';
 
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'TrendPrint — what to print to sell',
   description:
     'Opportunity score for 3D prints: high buying demand while the market is still open.',
+  openGraph: { siteName: 'TrendPrint', type: 'website' },
   // A app ja tem a sua propria traducao (ver LanguageProvider). Um tradutor de
   // browser por cima reescreve o texto sem saber do nosso re-render por score,
   // perde a referencia e mistura pedacos de idiomas diferentes no mesmo cartao.
