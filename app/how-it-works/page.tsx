@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 
 import { HowItWorks } from '@/components/HowItWorks';
 
-const TITLE = 'How TrendPrint finds 3D prints that sell — demand, competition and margin on Etsy';
+const TITLE = 'How TrendPrint finds 3D prints that sell — buying demand, competition and margin';
 const DESCRIPTION =
-  'Find what to 3D print and sell: a daily opportunity score from real Etsy buying demand, competition and ' +
-  'margin. See which products still have room to sell — free account, no card.';
+  'Find what to 3D print and sell: a daily opportunity score from real buying demand, competition and margin ' +
+  'across online marketplaces and search trends. See which products still have room to sell — free account, no card.';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -13,8 +13,9 @@ export const metadata: Metadata = {
   keywords: [
     'what to 3d print and sell',
     '3d printing business ideas',
-    'best selling 3d prints on etsy',
-    'etsy product research',
+    'best selling 3d prints',
+    '3d print product research',
+    'trending 3d prints',
     '3d print trends',
     'profitable 3d prints',
   ],
@@ -29,11 +30,11 @@ export const metadata: Metadata = {
 const FAQ = [
   [
     'What does TrendPrint measure?',
-    'Which 3D-printable products have real buying demand on Etsy while the market is still open. It does not measure virality: a product everyone talks about but thousands of shops already sell scores low.',
+    'Which 3D-printable products have real buying demand in online marketplaces while the market is still open. It does not measure virality: a product everyone talks about but thousands of shops already sell scores low.',
   ],
   [
     'How is demand measured?',
-    'By the reviews left in the last 30 days on the listing that leads the Etsy search for the product. Whoever reviews, bought — so it tracks purchases, not clicks or views.',
+    'By the reviews left in the last 30 days on the listing that leads the marketplace search for the product. Whoever reviews, bought — so it tracks purchases, not clicks or views.',
   ],
   [
     'How is the opportunity score calculated?',
@@ -41,7 +42,11 @@ const FAQ = [
   ],
   [
     'Is it free?',
-    'Yes. A free account shows the best product in each category with its full score. Paid plans show the whole ranking and the Etsy listings behind each product.',
+    'Yes. A free account shows the best product in each category with its full score. Paid plans show the whole ranking and the listings behind each product.',
+  ],
+  [
+    'Where does the data come from?',
+    'From online marketplaces (listings, prices and recent reviews) and from search signals on Google and YouTube, collected every day. Nothing is invented: when a source fails, that signal is left out, not counted as zero.',
   ],
 ];
 

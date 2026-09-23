@@ -25,8 +25,8 @@ interface Content {
   signup: string;
   captureNote: string;
   haveAccount: string;
-  seeRanking: string;
   termTitle: string;
+  termExample: string;
   termBody: string;
   termProduct: string;
   termSearch: string;
@@ -44,22 +44,24 @@ interface Content {
   limits: string[];
 }
 
-const SEARCH_TERM = 'fantasy dragon statue';
+// Exemplo ilustrativo, de proposito FORA do catalogo: a pagina e publica e nao
+// pode mostrar o que o ranking tem (isso e para quem tem conta).
+const SEARCH_TERM = 'hanging planter';
 
 const CONTENT: Record<Locale, Content> = {
   pt: {
     kicker: 'Como funciona',
     title: 'Não medimos o que está viral. Medimos o que está a vender — e onde ainda cabe mais um.',
     lead: 'Um produto pode estar em todo o lado no TikTok e mesmo assim ser má ideia: se já há milhares de lojas a vendê-lo, a atenção já foi apanhada por outros. O TrendPrint procura o contrário — procura de compra real com o mercado ainda aberto.',
-    searchLabel: 'Pesquisa na Etsy',
+    searchLabel: 'Pesquisa',
     emailLabel: 'O teu email',
     signup: 'Criar conta grátis',
     captureNote: 'Grátis e sem cartão. Vês já o melhor produto de cada categoria.',
     haveAccount: 'Já tens conta? Entra',
-    seeRanking: 'Ver o ranking de hoje',
     termTitle: 'Cada produto é um termo de mercado',
-    termBody: 'Não recomendamos um dragão específico de uma loja. Recomendamos um tipo de produto, medido pela pesquisa exata que os compradores fazem na Etsy. O design é teu.',
-    termProduct: 'Estátua de Dragão',
+    termExample: 'Exemplo',
+    termBody: 'Não recomendamos o produto de uma loja específica. Recomendamos um tipo de produto, medido pela pesquisa exata que os compradores fazem nos marketplaces. O design é teu.',
+    termProduct: 'Vaso Suspenso',
     termSearch: 'é a pesquisa',
     termSynonyms: 'mais os sinónimos, porque o mesmo produto vende com vários nomes',
     signalsTitle: 'Quatro sinais, recolhidos todos os dias',
@@ -75,7 +77,7 @@ const CONTENT: Record<Locale, Content> = {
         name: 'Concorrência',
         weight: 'quem já vende',
         caption: 'anúncios na pesquisa',
-        body: 'Quantos anúncios aparecem nessa pesquisa na Etsy. Muitos anúncios = mercado apertado, por muito procurado que seja.',
+        body: 'Quantos anúncios aparecem nessa pesquisa nos marketplaces. Muitos anúncios = mercado apertado, por muito procurado que seja.',
         visual: 'listings',
       },
       {
@@ -108,7 +110,7 @@ const CONTENT: Record<Locale, Content> = {
     ],
     dailyTitle: 'O que acontece enquanto dormes',
     daily: [
-      'De madrugada, o site recolhe os sinais de cada produto na Etsy, no Google e no YouTube.',
+      'De madrugada, o site recolhe os sinais de cada produto nos marketplaces, no Google e no YouTube.',
       'Produtos que ficam saturados 5 dias seguidos saem do ranking sozinhos — e voltam se recuperarem. Um dia mau isolado não tira nada.',
       'Todos os dias procuramos produtos novos no que as pessoas pesquisam como impressão 3D e nas lojas que vigiamos. Nada entra no ranking sem revisão humana.',
     ],
@@ -116,7 +118,7 @@ const CONTENT: Record<Locale, Content> = {
     limits: [
       'Visualizações de anúncios de outras lojas: só o dono as vê.',
       'Nem todo o comprador avalia, e a avaliação chega dias depois da venda. Serve para ritmo, não para contar vendas.',
-      'Só vemos o que já vende na Etsy. O que explode no TikTok e ainda não chegou lá, ainda não aparece.',
+      'Só vemos o que já está à venda nos marketplaces. O que explode no TikTok e ainda não chegou lá, ainda não aparece.',
       'Personagens com dono (anime, Marvel, jogos) não se podem vender impressos. Medimos o formato — chibi, busto, máscara — e o design tem de ser teu.',
     ],
   },
@@ -124,15 +126,15 @@ const CONTENT: Record<Locale, Content> = {
     kicker: 'How it works',
     title: "We don't measure what's viral. We measure what's selling — and where there's still room for one more.",
     lead: 'A product can be all over TikTok and still be a bad idea: if thousands of shops already sell it, someone else has captured the attention. TrendPrint looks for the opposite — real buying demand while the market is still open.',
-    searchLabel: 'Etsy search',
+    searchLabel: 'Search',
     emailLabel: 'Your email',
     signup: 'Create free account',
     captureNote: 'Free, no card. See the best product in each category right away.',
     haveAccount: 'Have an account? Sign in',
-    seeRanking: "See today's ranking",
     termTitle: 'Each product is a market term',
-    termBody: "We don't recommend one shop's specific dragon. We recommend a type of product, measured by the exact search buyers type on Etsy. The design is yours.",
-    termProduct: 'Dragon Statue',
+    termExample: 'Example',
+    termBody: "We don't recommend one shop's specific product. We recommend a type of product, measured by the exact search buyers type on online marketplaces. The design is yours.",
+    termProduct: 'Hanging Planter',
     termSearch: 'is the search',
     termSynonyms: 'plus synonyms, because the same product sells under several names',
     signalsTitle: 'Four signals, collected every day',
@@ -148,7 +150,7 @@ const CONTENT: Record<Locale, Content> = {
         name: 'Competition',
         weight: 'who already sells',
         caption: 'listings in the search',
-        body: 'How many listings show up for that search on Etsy. Many listings = a crowded market, however popular it is.',
+        body: 'How many listings show up for that search on online marketplaces. Many listings = a crowded market, however popular it is.',
         visual: 'listings',
       },
       {
@@ -181,7 +183,7 @@ const CONTENT: Record<Locale, Content> = {
     ],
     dailyTitle: 'What happens while you sleep',
     daily: [
-      "Overnight, the site collects each product's signals from Etsy, Google and YouTube.",
+      "Overnight, the site collects each product's signals from online marketplaces, Google and YouTube.",
       'Products that stay saturated 5 days in a row leave the ranking on their own — and return if they recover. One bad day removes nothing.',
       'Every day we look for new products in what people search as 3D printing and in the shops we watch. Nothing enters the ranking without human review.',
     ],
@@ -189,7 +191,7 @@ const CONTENT: Record<Locale, Content> = {
     limits: [
       "Views of other shops' listings: only the owner sees them.",
       'Not every buyer leaves a review, and reviews arrive days after the sale. Good for pace, not for counting sales.',
-      "We only see what already sells on Etsy. Something blowing up on TikTok that hasn't reached Etsy doesn't show yet.",
+      "We only see what is already for sale on marketplaces. Something blowing up on TikTok that hasn't reached them doesn't show yet.",
       "Characters someone owns (anime, Marvel, games) can't be sold printed. We measure the format — chibi, bust, mask — and the design has to be yours.",
     ],
   },
@@ -197,15 +199,15 @@ const CONTENT: Record<Locale, Content> = {
     kicker: 'Cómo funciona',
     title: 'No medimos lo que es viral. Medimos lo que se vende — y dónde aún cabe uno más.',
     lead: 'Un producto puede estar en todo TikTok y aun así ser mala idea: si ya hay miles de tiendas vendiéndolo, otros ya captaron la atención. TrendPrint busca lo contrario — demanda de compra real con el mercado todavía abierto.',
-    searchLabel: 'Búsqueda en Etsy',
+    searchLabel: 'Búsqueda',
     emailLabel: 'Tu correo',
     signup: 'Crear cuenta gratis',
     captureNote: 'Gratis y sin tarjeta. Ves ya el mejor producto de cada categoría.',
     haveAccount: '¿Ya tienes cuenta? Entra',
-    seeRanking: 'Ver el ranking de hoy',
     termTitle: 'Cada producto es un término de mercado',
-    termBody: 'No recomendamos el dragón concreto de una tienda. Recomendamos un tipo de producto, medido por la búsqueda exacta que hacen los compradores en Etsy. El diseño es tuyo.',
-    termProduct: 'Estatua de Dragón',
+    termExample: 'Ejemplo',
+    termBody: 'No recomendamos el producto concreto de una tienda. Recomendamos un tipo de producto, medido por la búsqueda exacta que hacen los compradores en los marketplaces. El diseño es tuyo.',
+    termProduct: 'Maceta Colgante',
     termSearch: 'es la búsqueda',
     termSynonyms: 'más los sinónimos, porque el mismo producto se vende con varios nombres',
     signalsTitle: 'Cuatro señales, recogidas cada día',
@@ -221,7 +223,7 @@ const CONTENT: Record<Locale, Content> = {
         name: 'Competencia',
         weight: 'quién ya vende',
         caption: 'anuncios en la búsqueda',
-        body: 'Cuántos anuncios aparecen en esa búsqueda en Etsy. Muchos anuncios = mercado apretado, por muy buscado que sea.',
+        body: 'Cuántos anuncios aparecen en esa búsqueda en los marketplaces. Muchos anuncios = mercado apretado, por muy buscado que sea.',
         visual: 'listings',
       },
       {
@@ -254,7 +256,7 @@ const CONTENT: Record<Locale, Content> = {
     ],
     dailyTitle: 'Lo que pasa mientras duermes',
     daily: [
-      'De madrugada, el sitio recoge las señales de cada producto en Etsy, Google y YouTube.',
+      'De madrugada, el sitio recoge las señales de cada producto en los marketplaces, Google y YouTube.',
       'Los productos saturados 5 días seguidos salen solos del ranking — y vuelven si se recuperan. Un mal día aislado no quita nada.',
       'Cada día buscamos productos nuevos en lo que la gente busca como impresión 3D y en las tiendas que vigilamos. Nada entra al ranking sin revisión humana.',
     ],
@@ -262,7 +264,7 @@ const CONTENT: Record<Locale, Content> = {
     limits: [
       'Visitas de anuncios de otras tiendas: solo las ve el dueño.',
       'No todo comprador reseña, y la reseña llega días después de la venta. Sirve para ritmo, no para contar ventas.',
-      'Solo vemos lo que ya se vende en Etsy. Lo que explota en TikTok y aún no llegó allí, todavía no aparece.',
+      'Solo vemos lo que ya está a la venta en los marketplaces. Lo que explota en TikTok y aún no llegó allí, todavía no aparece.',
       'Los personajes con dueño (anime, Marvel, juegos) no se pueden vender impresos. Medimos el formato — chibi, busto, máscara — y el diseño tiene que ser tuyo.',
     ],
   },
@@ -308,7 +310,6 @@ const delay = (seconds: number) => ({ animationDelay: `${seconds}s` });
 
 export function HowItWorks() {
   const { locale } = useTranslation();
-  const { session } = useAuth();
   const c = CONTENT[locale];
 
   return (
@@ -325,11 +326,12 @@ export function HowItWorks() {
         <h2 className={heading}>{c.termTitle}</h2>
         <p className="text-sm leading-relaxed text-muted">{c.termBody}</p>
         <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 p-5">
+          <span className="w-full font-mono text-[11px] uppercase tracking-wider text-muted">{c.termExample}</span>
           <span className="font-medium text-slate-100">{c.termProduct}</span>
           <span className="text-sm text-muted">{c.termSearch}</span>
           <span className="chip border-open/50 text-slate-100">{SEARCH_TERM}</span>
           <span className="w-full text-xs text-muted">
-            {c.termSynonyms}: <span className="font-mono">dragon figurine · dragon sculpture</span>
+            {c.termSynonyms}: <span className="font-mono">wall planter · hanging plant pot</span>
           </span>
         </div>
       </Reveal>
@@ -343,8 +345,8 @@ export function HowItWorks() {
         </div>
         <p className="pt-2 text-sm text-muted">
           {c.midCta}{' '}
-          <Link href={session ? '/' : '/signup'} className="font-medium text-open hover:underline">
-            {session ? `${c.seeRanking} →` : c.midCtaLink}
+          <Link href="/signup" className="font-medium text-open hover:underline">
+            {c.midCtaLink}
           </Link>
         </p>
       </section>
@@ -425,17 +427,10 @@ function SearchDemo({ c }: { c: Content }) {
  *  sessionStorage, nunca no link — um email no URL ficaria em historicos e
  *  registos de acesso). */
 function SignupCapture({ c }: { c: Content }) {
-  const { session, available } = useAuth();
+  const { available } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
 
-  if (session) {
-    return (
-      <Link href="/" className="btn-primary">
-        {c.seeRanking}
-      </Link>
-    );
-  }
   if (!available) return null;
 
   function onSubmit(event: FormEvent) {
