@@ -14,9 +14,9 @@ from uuid import UUID
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, StrictBool
+from pydantic import BaseModel, Field, StrictBool
 
-from core import auth, db, discovery, lifecycle, sources
+from core import auth, db, discovery, lifecycle, shops, sources
 from core.scoring import Scored, score_models
 
 log = logging.getLogger("trendprint")
@@ -31,6 +31,11 @@ COLLECT_BUDGET_SECONDS = 7.5
 COLLECT_WORKERS = 8
 DISCOVER_BUDGET_SECONDS = 7.5
 DISCOVER_PER_SEED = 3  # novos por semente, no maximo: a revisao humana tem de dar conta
+WATCH_BUDGET_SECONDS = 7.5
+# Dois pedidos Etsy por loja e em serie; 4 lojas em paralelo ficam abaixo do
+# limite de ~10 pedidos/s da API.
+WATCH_WORKERS = 4
+WATCH_PER_SHOP = 3  # candidatos novos por loja, no maximo
 FREE_PREVIEW = 2  # quantos do topo do ranking o plano gratis ve por inteiro
 # Faixas que o gratis ve nos bloqueados. Largas de proposito, e alinhadas com os
 # limiares de core/scoring (65 aberto, 45 saturado) para a cor nao mentir.
@@ -372,6 +377,114 @@ def discover(
 def discover_now(limit: Annotated[int, Query(ge=1, le=25)] = 5) -> dict[str, Any]:
     """O mesmo, a pedido do admin, sem esperar pelo cron."""
     return _discover(None, limit)
+
+
+def _watch() -> dict[str, Any]:
+    """Das lojas vigiadas, os produtos lancados ha pouco que ja vendem (ver
+    core/shops.py). Entram na mesma fila da descoberta, como 'pending', com a
+    categoria que o admin deu a loja e a loja na `source` — quem revê sabe de
+    onde veio. Nunca propoe uma variacao de algo ja conhecido."""
+    watched = db.list_shops()
+    known = discovery.known_terms(db.fetch_model_rows())
+    now = int(time.time())
+    deadline = time.monotonic() + WATCH_BUDGET_SECONDS
+    candidates: list[dict[str, Any]] = []
+    checked = 0
+
+    client = sources.http_client()
+    pool = ThreadPoolExecutor(max_workers=WATCH_WORKERS)
+    try:
+        futures = {pool.submit(shops.rising_listings, client, s["shop_id"], now): s for s in watched}
+        for future, shop in futures.items():
+            if time.monotonic() >= deadline:
+                break
+            try:
+                rising = future.result(timeout=deadline - time.monotonic())
+            except Exception:  # orcamento esgotado: a loja fica para amanha
+                continue
+            checked += 1
+            added = 0
+            for _reviews, listing in rising:
+                if added == WATCH_PER_SHOP:
+                    break
+                term = shops.title_term(str(listing.get("title") or ""))
+                if term is None or discovery.is_variant(term, known):
+                    continue
+                known.append(discovery.tokens(term))
+                candidates.append(
+                    {
+                        "name": term.title(),
+                        "category": shop["category"],
+                        "keyword": term,
+                        "status": db.PENDING,
+                        "source": f"{shops.SOURCE}:{shop['shop_name']}",
+                    }
+                )
+                added += 1
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+        client.close()
+
+    db.insert_candidates(candidates)
+    return {"shops_checked": checked, "candidates_proposed": len(candidates)}
+
+
+@app.get("/api/watch", dependencies=[Depends(require_cron)])
+def watch() -> dict[str, Any]:
+    """Cron diario do vigia de lojas. Nunca publica sozinho (invariante 8)."""
+    return _watch()
+
+
+@app.post("/api/admin/watch", dependencies=[Depends(require_admin)])
+def watch_now() -> dict[str, Any]:
+    """O mesmo, a pedido do admin, sem esperar pelo cron."""
+    return _watch()
+
+
+def _categories() -> list[str]:
+    return sorted({row["category"] for row in db.fetch_model_rows()})
+
+
+@app.get("/api/admin/shops", dependencies=[Depends(require_admin)])
+def list_watched_shops() -> dict[str, Any]:
+    return {
+        "shops": [
+            {"id": s["id"], "shop_name": s["shop_name"], "category": s["category"]} for s in db.list_shops()
+        ],
+        "categories": _categories(),
+    }
+
+
+class ShopBody(BaseModel):
+    shop: str = Field(min_length=2, max_length=200)  # nome ou link da loja
+    category: str = Field(min_length=1, max_length=40)
+
+
+@app.post("/api/admin/shops", dependencies=[Depends(require_admin)])
+def add_watched_shop(body: Annotated[ShopBody, Body()]) -> dict[str, Any]:
+    """Resolve o nome na Etsy antes de gravar: so entra uma loja que existe, e
+    so numa categoria que ja existe (e para la que vao os candidatos dela)."""
+    name = shops.shop_name_from(body.shop)
+    if name is None:
+        raise HTTPException(status_code=422, detail="invalid_shop")
+    if body.category not in _categories():
+        raise HTTPException(status_code=422, detail="invalid_category")
+    client = sources.http_client()
+    try:
+        found = shops.find_shop(client, name)
+    finally:
+        client.close()
+    if found is None:
+        raise HTTPException(status_code=404, detail="shop_not_found")
+    row = db.add_shop(found["shop_id"], found["shop_name"], body.category)
+    return {"shop": {"id": row.get("id"), "shop_name": found["shop_name"], "category": body.category}}
+
+
+@app.delete("/api/admin/shops/{row_id}", dependencies=[Depends(require_admin)])
+def remove_watched_shop(row_id: Annotated[UUID, Path()]) -> dict[str, Any]:
+    if not db.remove_shop(str(row_id)):
+        raise HTTPException(status_code=404, detail="not_found")
+    return {"id": str(row_id)}
 
 
 @app.get("/api/candidates", dependencies=[Depends(require_admin)])

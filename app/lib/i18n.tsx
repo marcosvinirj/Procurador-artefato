@@ -12,6 +12,24 @@ const STORAGE_KEY = 'trendprint.locale';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'admin.shops.title': 'Watched shops',
+  'admin.shops.hint':
+    'Etsy shops to follow. Every day the site looks in them for recently launched products that are already getting reviews — a sign they started selling. What it finds joins the review list below.',
+  'admin.shops.input': 'Shop name or link',
+  'admin.shops.category': 'Category for its products',
+  'admin.shops.add': 'Add',
+  'admin.shops.adding': 'Looking it up…',
+  'admin.shops.remove': 'Remove',
+  'admin.shops.empty': 'No shops watched yet. Add one above.',
+  'admin.shops.watch': 'Watch now',
+  'admin.shops.watching': 'Watching…',
+  'admin.shops.watched': '{{checked}} shops checked, {{added}} new products.',
+  'admin.shops.error.invalid':
+    "That doesn't look like an Etsy shop. Use the shop name (letters and numbers only) or its link.",
+  'admin.shops.error.not_found':
+    "Couldn't find that shop on Etsy. Check the name, or try again in a few minutes.",
+  'admin.candidates.from_shop': 'Seen at {{shop}}',
+  'admin.candidates.from_google': 'Google searches',
   'admin.candidates.search': 'Search now',
   'admin.candidates.searching': 'Searching…',
   'admin.candidates.found': '{{added}} new, {{rejected}} repeats removed.',
@@ -132,7 +150,7 @@ const en: Dict = {
   'admin.plan.paid': 'Paid',
   'admin.candidates.title': 'Products awaiting review',
   'admin.candidates.hint':
-    'Found automatically in what people search on Google. Approved ones join the ranking; rejected ones are never suggested again.',
+    'Found automatically in Google searches and in the watched shops. Approved ones join the ranking; rejected ones are never suggested again.',
   'admin.candidates.empty': 'Nothing to review right now.',
   'admin.candidates.approve': 'Approve',
   'admin.candidates.reject': 'Reject',
@@ -141,6 +159,24 @@ const en: Dict = {
 };
 
 const pt: Dict = {
+  'admin.shops.title': 'Lojas vigiadas',
+  'admin.shops.hint':
+    'Lojas da Etsy a acompanhar. Todos os dias o site procura nelas produtos lançados há pouco que já estão a receber avaliações — sinal de que começaram a vender. O que encontrar entra na lista de revisão abaixo.',
+  'admin.shops.input': 'Nome ou link da loja',
+  'admin.shops.category': 'Categoria dos produtos',
+  'admin.shops.add': 'Adicionar',
+  'admin.shops.adding': 'A procurar…',
+  'admin.shops.remove': 'Remover',
+  'admin.shops.empty': 'Ainda não há lojas vigiadas. Adiciona uma acima.',
+  'admin.shops.watch': 'Vigiar agora',
+  'admin.shops.watching': 'A vigiar…',
+  'admin.shops.watched': '{{checked}} lojas vistas, {{added}} produtos novos.',
+  'admin.shops.error.invalid':
+    'Isto não parece uma loja da Etsy. Usa o nome da loja (só letras e números) ou o link dela.',
+  'admin.shops.error.not_found':
+    'Não encontrei essa loja na Etsy. Confere o nome, ou tenta de novo daqui a uns minutos.',
+  'admin.candidates.from_shop': 'Visto na loja {{shop}}',
+  'admin.candidates.from_google': 'Pesquisas do Google',
   'admin.candidates.search': 'Procurar agora',
   'admin.candidates.searching': 'A procurar…',
   'admin.candidates.found': '{{added}} novos, {{rejected}} repetidos removidos.',
@@ -261,7 +297,7 @@ const pt: Dict = {
   'admin.plan.paid': 'Pago',
   'admin.candidates.title': 'Produtos à espera de revisão',
   'admin.candidates.hint':
-    'Encontrados automaticamente no que as pessoas pesquisam no Google. Os aprovados entram no ranking; os rejeitados não voltam a ser sugeridos.',
+    'Encontrados automaticamente nas pesquisas do Google e nas lojas vigiadas. Os aprovados entram no ranking; os rejeitados não voltam a ser sugeridos.',
   'admin.candidates.empty': 'Nada para rever agora.',
   'admin.candidates.approve': 'Aprovar',
   'admin.candidates.reject': 'Rejeitar',
@@ -270,6 +306,24 @@ const pt: Dict = {
 };
 
 const es: Dict = {
+  'admin.shops.title': 'Tiendas vigiladas',
+  'admin.shops.hint':
+    'Tiendas de Etsy a seguir. Cada día el sitio busca en ellas productos lanzados hace poco que ya reciben reseñas — señal de que empezaron a vender. Lo que encuentre entra en la lista de revisión de abajo.',
+  'admin.shops.input': 'Nombre o enlace de la tienda',
+  'admin.shops.category': 'Categoría de sus productos',
+  'admin.shops.add': 'Añadir',
+  'admin.shops.adding': 'Buscando…',
+  'admin.shops.remove': 'Quitar',
+  'admin.shops.empty': 'Aún no hay tiendas vigiladas. Añade una arriba.',
+  'admin.shops.watch': 'Vigilar ahora',
+  'admin.shops.watching': 'Vigilando…',
+  'admin.shops.watched': '{{checked}} tiendas revisadas, {{added}} productos nuevos.',
+  'admin.shops.error.invalid':
+    'Eso no parece una tienda de Etsy. Usa el nombre de la tienda (solo letras y números) o su enlace.',
+  'admin.shops.error.not_found':
+    'No encontré esa tienda en Etsy. Revisa el nombre, o inténtalo de nuevo en unos minutos.',
+  'admin.candidates.from_shop': 'Visto en la tienda {{shop}}',
+  'admin.candidates.from_google': 'Búsquedas de Google',
   'admin.candidates.search': 'Buscar ahora',
   'admin.candidates.searching': 'Buscando…',
   'admin.candidates.found': '{{added}} nuevos, {{rejected}} repetidos eliminados.',
@@ -391,7 +445,7 @@ const es: Dict = {
   'admin.plan.paid': 'De pago',
   'admin.candidates.title': 'Productos pendientes de revisión',
   'admin.candidates.hint':
-    'Encontrados automáticamente en lo que la gente busca en Google. Los aprobados entran en el ranking; los rechazados no se vuelven a sugerir.',
+    'Encontrados automáticamente en las búsquedas de Google y en las tiendas vigiladas. Los aprobados entran en el ranking; los rechazados no se vuelven a sugerir.',
   'admin.candidates.empty': 'Nada que revisar por ahora.',
   'admin.candidates.approve': 'Aprobar',
   'admin.candidates.reject': 'Rechazar',

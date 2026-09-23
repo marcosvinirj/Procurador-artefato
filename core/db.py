@@ -145,3 +145,18 @@ def list_profiles() -> list[dict[str, Any]]:
 def set_paid(user_id: str, paid: bool) -> bool:
     """Liga/desliga o plano pago. False se o perfil nao existir."""
     return bool(client().table("profiles").update({"is_paid": paid}).eq("id", user_id).execute().data)
+
+
+def list_shops() -> list[dict[str, Any]]:
+    return client().table("shops").select("*").order("shop_name").execute().data or []
+
+
+def add_shop(shop_id: int, shop_name: str, category: str) -> dict[str, Any]:
+    """Idempotente: a mesma loja outra vez so atualiza o nome e a categoria."""
+    row = {"shop_id": shop_id, "shop_name": shop_name, "category": category}
+    rows = client().table("shops").upsert(row, on_conflict="shop_id").execute().data or []
+    return rows[0] if rows else row
+
+
+def remove_shop(row_id: str) -> bool:
+    return bool(client().table("shops").delete().eq("id", row_id).execute().data)

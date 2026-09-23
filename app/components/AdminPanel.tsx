@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { RequireLogin } from '@/components/RequireLogin';
 import { ErrorState, LoadingGrid } from '@/components/StateView';
+import { WatchedShops } from '@/components/WatchedShops';
 import { postJson, useJson } from '@/lib/api';
 import { categoryLabel, useTranslation } from '@/lib/i18n';
 import { formatNumber } from '@/lib/score';
@@ -26,10 +27,14 @@ interface Candidate {
   name: string;
   category: string;
   keyword: string;
+  source: string | null;
   demand_raw: number | null;
   competition_raw: number | null;
   margin_est: number | null;
 }
+
+// Espelha core/shops.SOURCE: o vigia grava a loja de origem como "etsy_shop:<nome>".
+const SHOP_SOURCE = 'etsy_shop:';
 
 export function AdminPanel() {
   return (
@@ -173,6 +178,8 @@ function Admin() {
         )}
       </section>
 
+      <WatchedShops onFound={candidates.reload} />
+
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -206,6 +213,11 @@ function Admin() {
                 <div className="min-w-0">
                   <p className="font-medium text-slate-100">{candidate.name}</p>
                   <p className="font-mono text-xs text-muted">{candidate.keyword}</p>
+                  <p className="mt-1 font-mono text-[11px] text-open/80">
+                    {candidate.source?.startsWith(SHOP_SOURCE)
+                      ? t('admin.candidates.from_shop', { shop: candidate.source.slice(SHOP_SOURCE.length) })
+                      : t('admin.candidates.from_google')}
+                  </p>
                 </div>
                 <span className="chip shrink-0">{categoryLabel(locale, candidate.category)}</span>
               </div>

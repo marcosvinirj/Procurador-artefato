@@ -82,8 +82,8 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    service). Sem elas o site funciona na mesma, so sem o botao de entrar.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
-3. Tres crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
-   `/api/lifecycle` as 4h, `/api/discover` as 5h. No plano Hobby cada um corre
+3. Quatro crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
+   `/api/lifecycle` as 4h, `/api/discover` as 5h, `/api/watch` as 6h. No plano Hobby cada um corre
    **uma vez por dia**, com ~10s de timeout — por isso os conectores do collect
    vao em paralelo (I/O puro) e o discover processa uma fatia pequena de
    sementes por vez; se o orcamento esgotar, `next_offset` retoma sem perder
@@ -136,6 +136,17 @@ sao genericas por categoria + cada ativo, e o cron diario roda-as (um bloco
 diferente por dia). A recolha processa ativos primeiro, depois
 arquivados e pendentes; rejeitados nao gastam cota.
 
+Segunda fonte de candidatos: o **vigia de lojas** (`core/shops.py`, cron
+`/api/watch` as 6h UTC, ou o botao "Vigiar agora" no `/admin`). O admin escolhe
+lojas da Etsy e a categoria de cada uma; todos os dias o vigia procura nelas
+listagens criadas nos ultimos 120 dias com pelo menos 2 avaliacoes nos ultimos
+30 (quem avalia, comprou). Dois pedidos por loja, so com `ETSY_API_KEY`. O termo
+sai do titulo (antes do primeiro separador) e passa pelas mesmas regras de
+variacao do discovery — mas **sem** exigir "3d printed": numa loja de impressao
+3D o titulo raramente o diz, e a garantia e a loja estar na lista. A `source`
+fica `etsy_shop:<loja>`, e o painel mostra de onde veio cada candidato. Nao ve
+visualizacoes de listagens alheias nem o que ainda nao chegou a Etsy.
+
 Ao aprovar um candidato, atencao a propriedade intelectual: um personagem com
 dono (Marvel, anime, jogos) nao se pode vender impresso — o Etsy remove o
 anuncio e pune a conta. O catalogo so tem acessorios genericos, inclusive na
@@ -162,6 +173,7 @@ todos os dias). Separado, tem os seus ~10s e nao depende disso.
 | mudar quantos produtos o plano gratis ve | `api/index.py` — `FREE_PREVIEW` |
 | login, cadastro, senha | `app/lib/auth.tsx` + `app/components/AuthForms.tsx` |
 | painel de admin | `app/components/AdminPanel.tsx` + rotas `/api/admin*` em `api/index.py` |
+| vigia de lojas da Etsy | `core/shops.py` + `app/components/WatchedShops.tsx` |
 | mexer no visual | `app/components/` |
 
 ## Estado das fontes

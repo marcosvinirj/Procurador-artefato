@@ -29,6 +29,9 @@ def calls(monkeypatch):
     monkeypatch.setattr(db, "set_paid", lambda uid, paid: log.append(("paid", uid, paid)) or uid == USER_ID)
     monkeypatch.setattr(db, "update_model", lambda mid, **fields: log.append(("model", mid, fields)))
     monkeypatch.setattr(db, "insert_candidates", lambda rows: log.append(("candidates", rows)))
+    monkeypatch.setattr(db, "list_shops", lambda: [])
+    monkeypatch.setattr(db, "add_shop", lambda *a: log.append(("shop", a)))
+    monkeypatch.setattr(db, "remove_shop", lambda rid: log.append(("unshop", rid)))
     return log
 
 
@@ -43,6 +46,10 @@ ROUTES = [
     ("post", f"/api/admin/users/{USER_ID}", {"is_paid": True}),
     ("post", "/api/candidates/00000000-0000-0000-0000-000000000000", {"action": "reject"}),
     ("post", "/api/admin/discover", None),
+    ("post", "/api/admin/watch", None),
+    ("get", "/api/admin/shops", None),
+    ("post", "/api/admin/shops", {"shop": "AnimeLab", "category": "geek"}),
+    ("delete", f"/api/admin/shops/{USER_ID}", None),
 ]
 
 

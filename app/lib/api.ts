@@ -27,13 +27,13 @@ async function authHeader(): Promise<Record<string, string>> {
   }
 }
 
-/** GET, ou POST com corpo JSON quando `body` vem definido. O token vai no
- *  cabecalho (nunca em cookie), por isso outro site nao consegue forjar o pedido. */
-async function request<T>(path: string, body?: unknown): Promise<T> {
+/** GET, ou POST com corpo JSON quando `body` vem definido; DELETE a pedido. O
+ *  token vai no cabecalho (nunca em cookie), por isso outro site nao consegue
+ *  forjar o pedido. */
+async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', ...(await authHeader()) };
-  const init: RequestInit = { headers };
+  const init: RequestInit = { headers, method };
   if (body !== undefined) {
-    init.method = 'POST';
     init.body = JSON.stringify(body);
     headers['Content-Type'] = 'application/json';
   }
@@ -53,6 +53,10 @@ export function getJson<T>(path: string): Promise<T> {
 
 export function postJson<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, body);
+}
+
+export function deleteJson<T>(path: string): Promise<T> {
+  return request<T>(path, undefined, 'DELETE');
 }
 
 function toFetchError(cause: unknown): FetchError {

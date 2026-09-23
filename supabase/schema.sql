@@ -168,3 +168,15 @@ update models set synonyms = '{"figurine stand","figure holder"}' where keyword 
 -- Genericos demais para este nicho (entraram por engano numa versao anterior
 -- deste ficheiro). Apagar, nao arquivar: nunca chegaram a ser produto nosso.
 delete from models where keyword in ('animal figurine', 'desk figurine', 'kawaii desk decor', 'action figure');
+
+-- Vigia de lojas (core/shops.py): lojas da Etsy onde se procuram produtos
+-- lancados ha pouco que ja estao a vender. Escrita so pela API (service key),
+-- a partir do painel de admin; RLS sem politicas, como as outras tabelas.
+create table if not exists shops (
+  id         uuid primary key default gen_random_uuid(),
+  shop_id    bigint not null unique,  -- id da loja na Etsy
+  shop_name  text not null,
+  category   text not null,           -- categoria onde entram os candidatos desta loja
+  created_at timestamptz not null default now()
+);
+alter table shops enable row level security;
