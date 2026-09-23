@@ -1,9 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-
 import { OpportunityScale } from '@/components/OpportunityScale';
-import { useAuth } from '@/lib/auth';
 import { useTranslation, type Locale } from '@/lib/i18n';
 
 /** Pagina publica "Como funciona". Os numeros aqui espelham o codigo — pesos
@@ -27,10 +24,6 @@ interface Content {
   daily: string[];
   limitsTitle: string;
   limits: string[];
-  ctaTitle: string;
-  ctaBody: string;
-  ctaSignup: string;
-  ctaCatalog: string;
 }
 
 const CONTENT: Record<Locale, Content> = {
@@ -85,10 +78,6 @@ const CONTENT: Record<Locale, Content> = {
       'Só vemos o que já vende na Etsy. O que explode no TikTok e ainda não chegou lá, ainda não aparece.',
       'Personagens com dono (anime, Marvel, jogos) não se podem vender impressos. Medimos o formato — chibi, busto, máscara — e o design tem de ser teu.',
     ],
-    ctaTitle: 'Vê o ranking de hoje',
-    ctaBody: 'A conta grátis mostra o melhor produto de cada categoria, com o score completo.',
-    ctaSignup: 'Criar conta grátis',
-    ctaCatalog: 'Ver o ranking',
   },
   en: {
     kicker: 'How it works',
@@ -141,10 +130,6 @@ const CONTENT: Record<Locale, Content> = {
       "We only see what already sells on Etsy. Something blowing up on TikTok that hasn't reached Etsy doesn't show yet.",
       "Characters someone owns (anime, Marvel, games) can't be sold printed. We measure the format — chibi, bust, mask — and the design has to be yours.",
     ],
-    ctaTitle: "See today's ranking",
-    ctaBody: 'The free account shows the best product in each category, with the full score.',
-    ctaSignup: 'Create free account',
-    ctaCatalog: 'See the ranking',
   },
   es: {
     kicker: 'Cómo funciona',
@@ -197,10 +182,6 @@ const CONTENT: Record<Locale, Content> = {
       'Solo vemos lo que ya se vende en Etsy. Lo que explota en TikTok y aún no llegó allí, todavía no aparece.',
       'Los personajes con dueño (anime, Marvel, juegos) no se pueden vender impresos. Medimos el formato — chibi, busto, máscara — y el diseño tiene que ser tuyo.',
     ],
-    ctaTitle: 'Mira el ranking de hoy',
-    ctaBody: 'La cuenta gratis muestra el mejor producto de cada categoría, con el puntaje completo.',
-    ctaSignup: 'Crear cuenta gratis',
-    ctaCatalog: 'Ver el ranking',
   },
 };
 
@@ -208,7 +189,6 @@ const heading = 'text-lg font-semibold tracking-tight text-slate-50 sm:text-xl';
 
 export function HowItWorks() {
   const { locale } = useTranslation();
-  const { session } = useAuth();
   const c = CONTENT[locale];
 
   return (
@@ -285,15 +265,6 @@ export function HowItWorks() {
         </ul>
       </section>
 
-      <section className="panel flex flex-col items-start gap-4 border-open/30 p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="font-semibold text-slate-50">{c.ctaTitle}</h2>
-          <p className="text-sm text-muted">{c.ctaBody}</p>
-        </div>
-        <Link href={session ? '/' : '/signup'} className="btn-primary shrink-0">
-          {session ? c.ctaCatalog : c.ctaSignup}
-        </Link>
-      </section>
     </article>
   );
 }
