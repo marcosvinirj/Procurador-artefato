@@ -16,6 +16,10 @@
     {
       "path": "/api/watch",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/showcase",
+      "schedule": "0 7 * * *"
     }
   ],
   "rewrites": [
@@ -52,7 +56,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://jugcmckolfnpkcorgdtk.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.etsystatic.com; connect-src 'self' https://jugcmckolfnpkcorgdtk.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         }
       ]
     }

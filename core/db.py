@@ -61,7 +61,7 @@ def load_models(category: str | None = None, days: int = HISTORY_DAYS, status: s
     snaps = (
         client()
         .table("snapshots")
-        .select("model_id, day, demand_raw, competition_raw, margin_est")
+        .select("model_id, day, demand_raw, competition_raw, margin_est, showcase")
         .in_("model_id", [r["id"] for r in rows])
         .gte("day", since)
         .execute()
@@ -76,6 +76,7 @@ def load_models(category: str | None = None, days: int = HISTORY_DAYS, status: s
                 demand_raw=_num(s["demand_raw"]),
                 competition_raw=_num(s["competition_raw"]),
                 margin_est=_num(s["margin_est"]),
+                showcase=tuple(s.get("showcase") or ()),
             )
         )
     return [_to_model(r, by_model.get(str(r["id"]), [])) for r in rows]
@@ -125,26 +126,32 @@ def apply_lifecycle_changes(changes: Sequence[dict[str, Any]]) -> None:
         client().table("models").update({"status": status, "low_score_streak": streak}).in_("id", ids).execute()
 
 
-def access(user_id: str) -> tuple[bool, bool]:
-    """(pago, admin). Fail-closed: sem perfil, erro de rede ou tabela em falta
-    => (False, False) — um erro nosso nunca pode desbloquear nada. select("*")
-    de proposito: se a coluna is_admin ainda nao existir (SQL por correr), o
-    pago continua a funcionar em vez de a consulta inteira falhar."""
+PLANS = ("free", "pro", "premium")
+
+
+def access(user_id: str) -> tuple[str, bool]:
+    """(plano, admin). Fail-closed: sem perfil, erro de rede, tabela em falta
+    ou plano desconhecido => ("free", False) — um erro nosso nunca pode
+    desbloquear nada. select("*") de proposito: antes de a coluna `plan`
+    existir (SQL por correr), is_paid=true ainda conta como "pro"."""
     try:
         rows = client().table("profiles").select("*").eq("id", user_id).limit(1).execute().data or []
     except Exception:
-        return False, False
+        return "free", False
     row = rows[0] if rows else {}
-    return row.get("is_paid") is True, row.get("is_admin") is True
+    plan = row.get("plan") if "plan" in row else ("pro" if row.get("is_paid") is True else "free")
+    return (plan if plan in PLANS else "free"), row.get("is_admin") is True
 
 
 def list_profiles() -> list[dict[str, Any]]:
     return client().table("profiles").select("*").order("created_at", desc=True).execute().data or []
 
 
-def set_paid(user_id: str, paid: bool) -> bool:
-    """Liga/desliga o plano pago. False se o perfil nao existir."""
-    return bool(client().table("profiles").update({"is_paid": paid}).eq("id", user_id).execute().data)
+def set_plan(user_id: str, plan: str) -> bool:
+    """Muda o plano. is_paid acompanha, para quem ainda o le. False se o perfil
+    nao existir."""
+    fields = {"plan": plan, "is_paid": plan != "free"}
+    return bool(client().table("profiles").update(fields).eq("id", user_id).execute().data)
 
 
 def list_shops() -> list[dict[str, Any]]:
@@ -160,3 +167,28 @@ def add_shop(shop_id: int, shop_name: str, category: str) -> dict[str, Any]:
 
 def remove_shop(row_id: str) -> bool:
     return bool(client().table("shops").delete().eq("id", row_id).execute().data)
+
+
+def recent_showcases(days: int = 3) -> list[dict[str, Any]]:
+    """A vitrine mais recente de cada modelo (ultimos `days` dias). Janela e nao
+    "so hoje": no Hobby o cron corre em qualquer minuto da hora marcada, e a
+    recolha pode ainda nao ter corrido quando a rotina das fotos corre."""
+    since = (date.today() - timedelta(days=days)).isoformat()
+    rows = (
+        client().table("snapshots").select("model_id, day, showcase").gte("day", since)
+        .not_.is_("showcase", "null").order("day", desc=True).execute().data or []
+    )
+    latest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        latest.setdefault(str(row["model_id"]), row)
+    return list(latest.values())
+
+
+def save_showcases(rows: Sequence[dict[str, Any]]) -> None:
+    """So a coluna showcase. Upsert parcial serve aqui (ao contrario de models):
+    as outras colunas de snapshots aceitam null, e a linha ja existe."""
+    if rows:
+        client().table("snapshots").upsert(
+            [{"model_id": r["model_id"], "day": r["day"], "showcase": r["showcase"]} for r in rows],
+            on_conflict="model_id,day",
+        ).execute()

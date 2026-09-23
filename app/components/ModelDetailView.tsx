@@ -3,6 +3,7 @@
 import Link from 'next/link';
 
 import { Breakdown } from '@/components/Breakdown';
+import { EtsyShowcase } from '@/components/EtsyShowcase';
 import { RequireLogin } from '@/components/RequireLogin';
 import { ScoreGauge } from '@/components/ScoreGauge';
 import { ErrorState, LoadingGrid } from '@/components/StateView';
@@ -76,6 +77,8 @@ function Detail({ model }: { model: ModelDetail }) {
           </span>
         </div>
       </section>
+
+      <EtsyShowcase model={model} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="panel p-5">

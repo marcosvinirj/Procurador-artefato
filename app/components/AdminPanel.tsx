@@ -8,11 +8,14 @@ import { WatchedShops } from '@/components/WatchedShops';
 import { postJson, useJson } from '@/lib/api';
 import { categoryLabel, useTranslation } from '@/lib/i18n';
 import { formatNumber } from '@/lib/score';
+import type { Plan } from '@/lib/types';
+
+const PLANS: Plan[] = ['free', 'pro', 'premium'];
 
 interface AdminUser {
   id: string;
   email: string | null;
-  is_paid: boolean;
+  plan: Plan;
   is_admin: boolean;
   created_at: string | null;
 }
@@ -95,7 +98,7 @@ function Admin() {
   const { users, models } = overview.data;
   const stats: [string, number][] = [
     ['admin.stat.users', users.length],
-    ['admin.stat.paid', users.filter((user) => user.is_paid).length],
+    ['admin.stat.paid', users.filter((user) => user.plan !== 'free').length],
     ['admin.stat.active', models.active ?? 0],
     ['admin.stat.pending', models.pending ?? 0],
     ['admin.stat.archived', models.archived ?? 0],
@@ -152,23 +155,27 @@ function Admin() {
                       {user.created_at?.slice(0, 10) ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
+                      <select
+                        value={user.plan}
                         disabled={busy === user.id}
-                        aria-pressed={user.is_paid}
-                        onClick={() =>
+                        aria-label={t('admin.users.plan')}
+                        onChange={(event) =>
                           void act(
                             user.id,
-                            () => postJson(`/api/admin/users/${user.id}`, { is_paid: !user.is_paid }),
+                            () => postJson(`/api/admin/users/${user.id}`, { plan: event.target.value }),
                             overview.reload,
                           )
                         }
-                        className={`chip transition disabled:opacity-50 ${
-                          user.is_paid ? 'border-open/60 bg-open/10 text-open' : 'hover:border-open hover:text-open'
+                        className={`rounded-md border bg-ink/70 px-2 py-1 font-mono text-[11px] uppercase tracking-wider disabled:opacity-50 ${
+                          user.plan === 'free' ? 'border-edge text-muted' : 'border-open/60 text-open'
                         }`}
                       >
-                        {t(user.is_paid ? 'admin.plan.paid' : 'admin.plan.free')}
-                      </button>
+                        {PLANS.map((plan) => (
+                          <option key={plan} value={plan}>
+                            {t(`plan.name.${plan}`)}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 ))}

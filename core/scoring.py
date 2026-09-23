@@ -39,6 +39,9 @@ class Snapshot:
     demand_raw: float | None = None
     competition_raw: float | None = None
     margin_est: float | None = None
+    # Os primeiros anuncios da Etsy para o termo (titulo, link, preco, foto).
+    # Nao entra no score: so se mostra, conforme o plano (api/index.py).
+    showcase: tuple[dict, ...] = field(default=(), compare=False)
 
 
 @dataclass(frozen=True)

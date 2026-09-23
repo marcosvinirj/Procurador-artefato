@@ -36,10 +36,13 @@ compra alta com o mercado ainda por fechar. Nao mede viralidade — mede oportun
    email confirmado: sem ela, `/api/models*` responde 401. `profiles.is_paid` so e
    escrito pela service key (RLS sem politicas: ninguem se marca como pago).
    Qualquer falha a validar a sessao conta como anonimo (`core/auth.py`).
-   O plano gratis ve os `FREE_PREVIEW` primeiros do ranking **global**, calculados
-   antes de busca/categoria (senao variar a busca revelava tudo); de cada um dos
-   outros so vai a categoria e a faixa larga do score (`SCORE_BANDS`), e o detalhe
-   responde 403. Nunca mandar dados reais para o browser "borrar".
+   Tres planos em `profiles.plan`: **free** ve o melhor de CADA categoria do ranking
+   **global** (calculado antes de busca/categoria, senao variar a busca revelava
+   tudo) e so a foto do anuncio lider; dos outros so vai a categoria e a faixa
+   larga do score (`SCORE_BANDS`), e o detalhe responde 403. **pro** ve tudo, mais
+   o link da pesquisa na Etsy e o anuncio lider com link. **premium** ve os 4
+   primeiros anuncios (`_showcase` em `api/index.py`). Nunca mandar dados reais
+   para o browser "borrar" nem esconder o que um plano nao paga.
    Nenhuma resposta da API vai para a cache da CDN
    (`private, no-store` + `Vary: Authorization`, no middleware de `api/index.py`).
 
@@ -82,8 +85,10 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    service). Sem elas o site funciona na mesma, so sem o botao de entrar.
    Sem `CRON_SECRET` definido, a Vercel nao assina as chamadas do cron e
    `/api/collect` responde 401 — que e o comportamento correto.
-3. Quatro crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
-   `/api/lifecycle` as 4h, `/api/discover` as 5h, `/api/watch` as 6h. No plano Hobby cada um corre
+3. Cinco crons em `vercel.json`, sempre UTC: `/api/collect` as 3h,
+   `/api/lifecycle` as 4h, `/api/discover` as 5h, `/api/watch` as 6h e
+   `/api/showcase` as 7h (fotos da vitrine; no Hobby cada cron corre em qualquer
+   minuto da hora marcada, por isso le a vitrine mais recente, nao so a de hoje). No plano Hobby cada um corre
    **uma vez por dia**, com ~10s de timeout — por isso os conectores do collect
    vao em paralelo (I/O puro) e o discover processa uma fatia pequena de
    sementes por vez; se o orcamento esgotar, `next_offset` retoma sem perder
@@ -102,8 +107,8 @@ TRENDPRINT_URL=http://localhost:8000 CRON_SECRET=... python scripts/review_candi
    sem dominio: Gmail dedicado, `smtp.gmail.com:465`, senha de app do Google
    (~500 emails/dia). Com dominio, trocar para Resend. Um cadastro repetido de
    um email ja confirmado mostra sucesso mas nao envia nada (anti-enumeracao).
-   Para testar o plano pago: Table Editor → `profiles` → `is_paid = true` na
-   propria linha (ou, sendo admin, no painel `/admin`).
+   Para testar um plano: no painel `/admin`, escolher o plano da conta (ou Table
+   Editor → `profiles` → `plan`).
 5. **Tornar-se admin** (uma vez, depois de criar conta no site): SQL Editor →
    `update public.profiles set is_admin = true where email = '<o-teu-email>';`
 
@@ -170,7 +175,7 @@ todos os dias). Separado, tem os seus ~10s e nao depende disso.
 | adicionar uma fonte de descoberta (candidatos novos) | `core/discovery.py` |
 | mudar a regra de arquivamento (dias, limiar) | `core/lifecycle.py` — `DEFAULT_THRESHOLD_DAYS`, `SATURATED_THRESHOLD` em `core/scoring.py` |
 | adicionar uma rota | `api/index.py` — um so `FastAPI()` |
-| mudar quantos produtos o plano gratis ve | `api/index.py` — `FREE_PREVIEW` |
+| mudar o que cada plano ve | `api/index.py` — `_free_ids` e `_showcase` |
 | login, cadastro, senha | `app/lib/auth.tsx` + `app/components/AuthForms.tsx` |
 | painel de admin | `app/components/AdminPanel.tsx` + rotas `/api/admin*` em `api/index.py` |
 | vigia de lojas da Etsy | `core/shops.py` + `app/components/WatchedShops.tsx` |

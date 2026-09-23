@@ -12,6 +12,17 @@ const STORAGE_KEY = 'trendprint.locale';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'plan.name.free': 'Free',
+  'plan.name.pro': 'Pro',
+  'plan.name.premium': 'Premium',
+  'showcase.title_one': 'Top listing on Etsy',
+  'showcase.title_many': 'Selling now on Etsy',
+  'showcase.search': 'See this search on Etsy',
+  'showcase.view': 'View on Etsy',
+  'showcase.no_photo': 'Photo on its way — updated daily.',
+  'showcase.empty': 'No Etsy listings collected yet. They update every day.',
+  'showcase.upsell_free': 'Pro shows the listing link and the exact Etsy search behind these numbers.',
+  'showcase.upsell_pro': 'Premium shows the top 4 listings, so you see the range of what sells.',
   'admin.shops.title': 'Watched shops',
   'admin.shops.hint':
     'Etsy shops to follow. Every day the site looks in them for recently launched products that are already getting reviews — a sign they started selling. What it finds joins the review list below.',
@@ -146,8 +157,6 @@ const en: Dict = {
   'admin.users.email': 'Email',
   'admin.users.created': 'Created',
   'admin.users.plan': 'Plan',
-  'admin.plan.free': 'Free',
-  'admin.plan.paid': 'Paid',
   'admin.candidates.title': 'Products awaiting review',
   'admin.candidates.hint':
     'Found automatically in Google searches and in the watched shops. Approved ones join the ranking; rejected ones are never suggested again.',
@@ -159,6 +168,17 @@ const en: Dict = {
 };
 
 const pt: Dict = {
+  'plan.name.free': 'Grátis',
+  'plan.name.pro': 'Pro',
+  'plan.name.premium': 'Premium',
+  'showcase.title_one': 'Anúncio líder na Etsy',
+  'showcase.title_many': 'A vender agora na Etsy',
+  'showcase.search': 'Ver esta pesquisa na Etsy',
+  'showcase.view': 'Ver na Etsy',
+  'showcase.no_photo': 'Foto a caminho — atualiza todos os dias.',
+  'showcase.empty': 'Ainda sem anúncios da Etsy recolhidos. Atualizam todos os dias.',
+  'showcase.upsell_free': 'No Pro vês o link do anúncio e a pesquisa exata da Etsy por trás destes números.',
+  'showcase.upsell_pro': 'No Premium vês os 4 primeiros anúncios, para veres a variedade do que vende.',
   'admin.shops.title': 'Lojas vigiadas',
   'admin.shops.hint':
     'Lojas da Etsy a acompanhar. Todos os dias o site procura nelas produtos lançados há pouco que já estão a receber avaliações — sinal de que começaram a vender. O que encontrar entra na lista de revisão abaixo.',
@@ -293,8 +313,6 @@ const pt: Dict = {
   'admin.users.email': 'Email',
   'admin.users.created': 'Criada',
   'admin.users.plan': 'Plano',
-  'admin.plan.free': 'Grátis',
-  'admin.plan.paid': 'Pago',
   'admin.candidates.title': 'Produtos à espera de revisão',
   'admin.candidates.hint':
     'Encontrados automaticamente nas pesquisas do Google e nas lojas vigiadas. Os aprovados entram no ranking; os rejeitados não voltam a ser sugeridos.',
@@ -306,6 +324,18 @@ const pt: Dict = {
 };
 
 const es: Dict = {
+  'plan.name.free': 'Gratis',
+  'plan.name.pro': 'Pro',
+  'plan.name.premium': 'Premium',
+  'showcase.title_one': 'Anuncio líder en Etsy',
+  'showcase.title_many': 'Vendiéndose ahora en Etsy',
+  'showcase.search': 'Ver esta búsqueda en Etsy',
+  'showcase.view': 'Ver en Etsy',
+  'showcase.no_photo': 'Foto en camino — se actualiza cada día.',
+  'showcase.empty': 'Aún no hay anuncios de Etsy recogidos. Se actualizan cada día.',
+  'showcase.upsell_free':
+    'En Pro ves el enlace del anuncio y la búsqueda exacta de Etsy detrás de estos números.',
+  'showcase.upsell_pro': 'En Premium ves los 4 primeros anuncios, para ver la variedad de lo que se vende.',
   'admin.shops.title': 'Tiendas vigiladas',
   'admin.shops.hint':
     'Tiendas de Etsy a seguir. Cada día el sitio busca en ellas productos lanzados hace poco que ya reciben reseñas — señal de que empezaron a vender. Lo que encuentre entra en la lista de revisión de abajo.',
@@ -441,8 +471,6 @@ const es: Dict = {
   'admin.users.email': 'Correo',
   'admin.users.created': 'Creada',
   'admin.users.plan': 'Plan',
-  'admin.plan.free': 'Gratis',
-  'admin.plan.paid': 'De pago',
   'admin.candidates.title': 'Productos pendientes de revisión',
   'admin.candidates.hint':
     'Encontrados automáticamente en las búsquedas de Google y en las tiendas vigiladas. Los aprobados entran en el ranking; los rechazados no se vuelven a sugerir.',

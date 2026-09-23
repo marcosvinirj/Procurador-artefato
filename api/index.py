@@ -10,11 +10,12 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from typing import Annotated, Any, Literal
+from urllib.parse import quote_plus
 from uuid import UUID
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, StrictBool
+from pydantic import BaseModel, Field
 
 from core import auth, db, discovery, lifecycle, shops, sources
 from core.scoring import Scored, score_models
@@ -36,7 +37,6 @@ WATCH_BUDGET_SECONDS = 7.5
 # limite de ~10 pedidos/s da API.
 WATCH_WORKERS = 4
 WATCH_PER_SHOP = 3  # candidatos novos por loja, no maximo
-FREE_PREVIEW = 2  # quantos do topo do ranking o plano gratis ve por inteiro
 # Faixas que o gratis ve nos bloqueados. Largas de proposito, e alinhadas com os
 # limiares de core/scoring (65 aberto, 45 saturado) para a cor nao mentir.
 SCORE_BANDS = ((80, 100), (65, 79), (45, 64), (0, 44))
@@ -80,10 +80,14 @@ def require_viewer(authorization: Annotated[str | None, Header()] = None) -> aut
 
 
 def _free_ids(ranked: list[Scored]) -> set[str]:
-    """O que o plano gratis ve: os primeiros do ranking GLOBAL dos ativos.
-    Tem de ser calculado antes de qualquer filtro — se cada busca ou categoria
-    tivesse o seu proprio "top", bastava variar a busca para ver tudo."""
-    return {item.model.id for item in ranked[:FREE_PREVIEW]}
+    """O que o plano gratis ve: o melhor de CADA categoria, no ranking GLOBAL
+    dos ativos — uma montra de todos os nichos, nao so do topo. Tem de ser
+    calculado antes de qualquer filtro: se cada busca ou categoria tivesse o
+    seu proprio "top", bastava variar a busca para ver tudo."""
+    best: dict[str, str] = {}
+    for item in ranked:
+        best.setdefault(item.model.category, item.model.id)
+    return set(best.values())
 
 
 def _band(score: float) -> list[int]:
@@ -91,9 +95,24 @@ def _band(score: float) -> list[int]:
     return next(([low, high] for low, high in SCORE_BANDS if score >= low), list(SCORE_BANDS[-1]))
 
 
-def _serialize(item: Scored) -> dict[str, Any]:
+def _showcase(item: Scored, plan: str) -> list[dict[str, Any]]:
+    """Os anuncios da Etsy que cada plano ve: gratis so a foto do lider (sem
+    link nem titulo), Pro o lider inteiro, Premium os primeiros SHOWCASE_SIZE.
+    Decide-se aqui, no servidor: o que um plano nao ve nunca sai daqui."""
+    listings = list(item.latest.showcase) if item.latest else []
+    if plan == auth.FREE:
+        return [{"image": x["image"]} for x in listings[:1] if x.get("image")]
+    keep = sources.SHOWCASE_SIZE if plan == auth.PREMIUM else 1
+    fields = ("title", "url", "price", "currency", "image")
+    return [{k: x.get(k) for k in fields} for x in listings[:keep]]
+
+
+def _serialize(item: Scored, plan: str) -> dict[str, Any]:
     model, snap = item.model, item.latest
     return {
+        "showcase": _showcase(item, plan),
+        # A pesquisa exata que gerou os numeros: e ela que o utilizador ve na Etsy.
+        "search_url": f"https://www.etsy.com/search?q={quote_plus(model.keyword)}" if plan != auth.FREE else None,
         "id": model.id,
         "name": model.name,
         "category": model.category,
@@ -119,8 +138,8 @@ def list_models(
     category: Annotated[str | None, Query(max_length=40)] = None,
     q: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, Any]:
-    """Plano pago: tudo. Gratis: os FREE_PREVIEW do topo e, de cada um dos
-    outros, so a categoria e a faixa larga do score, na ordem do ranking — o
+    """Pro e Premium: tudo. Gratis: o melhor de cada categoria e, de cada um
+    dos outros, so a categoria e a faixa larga do score, na ordem do ranking — o
     suficiente para despertar interesse. Nome, id e numeros nunca saem daqui
     para ser "borrados" no browser, onde qualquer um os leria."""
     models = db.load_models(status=db.ACTIVE)
@@ -139,10 +158,10 @@ def list_models(
     if q and (needle := q.strip().lower()):
         ranked = [item for item in ranked if _matches(item, needle)]
     return {
-        "models": [_serialize(item) for item in ranked],
+        "models": [_serialize(item, viewer.plan) for item in ranked],
         "categories": sorted({m.category for m in models}),
         "locked": locked,
-        "plan": "paid" if viewer.is_paid else "free",
+        "plan": viewer.plan,
     }
 
 
@@ -179,7 +198,8 @@ def get_model(
         item = next(s for s in ranked if s.model.id == target)
 
     return {
-        **_serialize(item),
+        **_serialize(item, viewer.plan),
+        "plan": viewer.plan,
         "history": [
             {
                 "day": s.day.isoformat(),
@@ -268,6 +288,7 @@ def collect(
                     "demand_raw": signal.demand_raw,
                     "competition_raw": signal.competition_raw,
                     "margin_est": signal.margin_est,
+                    "showcase": list(signal.showcase) or None,
                 }
             )
     finally:
@@ -285,6 +306,29 @@ def collect(
         "saved": saved,
         "next_offset": offset + processed if incomplete else None,
     }
+
+
+@app.get("/api/showcase", dependencies=[Depends(require_cron)])
+def showcase_images() -> dict[str, Any]:
+    """Junta a foto a cada anuncio da vitrine. A busca da Etsy nao traz fotos;
+    o endpoint em lote traz, ate 100 anuncios por pedido — 60 produtos x 4
+    anuncios sao 3 pedidos por dia. So pede o que ainda nao tem foto."""
+    rows = db.recent_showcases()
+    missing = sorted({x["listing_id"] for r in rows for x in r["showcase"] if not x.get("image")})
+    images: dict[int, str] = {}
+    client = sources.http_client()
+    try:
+        for start in range(0, len(missing), 100):
+            images.update(sources.etsy_images(client, missing[start : start + 100]))
+    finally:
+        client.close()
+    changed = []
+    for row in rows:
+        updated = [{**x, "image": images[x["listing_id"]]} if x["listing_id"] in images else x for x in row["showcase"]]
+        if updated != row["showcase"]:
+            changed.append({**row, "showcase": updated})
+    db.save_showcases(changed)
+    return {"listings_missing": len(missing), "images_found": len(images), "rows_updated": len(changed)}
 
 
 @app.get("/api/lifecycle", dependencies=[Depends(require_cron)])
@@ -552,6 +596,7 @@ def me(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
         "authenticated": viewer.authenticated,
         "email": viewer.email,
         "is_paid": viewer.is_paid,
+        "plan": viewer.plan,
         "is_admin": viewer.is_admin,
     }
 
@@ -564,7 +609,7 @@ def admin_overview() -> dict[str, Any]:
             {
                 "id": p["id"],
                 "email": p.get("email"),
-                "is_paid": p.get("is_paid") is True,
+                "plan": p.get("plan") if p.get("plan") in auth.PLANS else ("pro" if p.get("is_paid") else "free"),
                 "is_admin": p.get("is_admin") is True,
                 "created_at": p.get("created_at"),
             }
@@ -576,14 +621,14 @@ def admin_overview() -> dict[str, Any]:
 
 class PlanBody(BaseModel):
     # So o plano. is_admin fica de fora de proposito: nem um admin promove outro pela API.
-    is_paid: StrictBool
+    plan: Literal["free", "pro", "premium"]
 
 
 @app.post("/api/admin/users/{user_id}", dependencies=[Depends(require_admin)])
 def set_user_plan(user_id: Annotated[UUID, Path()], body: Annotated[PlanBody, Body()]) -> dict[str, Any]:
-    if not db.set_paid(str(user_id), body.is_paid):
+    if not db.set_plan(str(user_id), body.plan):
         raise HTTPException(status_code=404, detail="not_found")
-    return {"id": str(user_id), "is_paid": body.is_paid}
+    return {"id": str(user_id), "plan": body.plan}
 
 
 @app.middleware("http")

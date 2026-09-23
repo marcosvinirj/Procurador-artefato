@@ -180,3 +180,16 @@ create table if not exists shops (
   created_at timestamptz not null default now()
 );
 alter table shops enable row level security;
+
+-- Planos (2026-09-23): free | pro | premium. Como o is_paid, so e escrito pela
+-- service key (admin ou, no futuro, o webhook do Stripe). Quem ja era pago
+-- passa a Pro. is_paid fica, sincronizado, para nada antigo partir.
+alter table profiles add column if not exists plan text not null default 'free';
+alter table profiles drop constraint if exists profiles_plan_check;
+alter table profiles add constraint profiles_plan_check check (plan in ('free', 'pro', 'premium'));
+update profiles set plan = 'pro' where is_paid and plan = 'free';
+
+-- Vitrine: os primeiros anuncios da Etsy de cada termo, no dia (titulo, link,
+-- preco e, depois da rotina /api/showcase, a foto). So se mostra; nao entra
+-- no score. A foto fica na Etsy: guarda-se so o endereco.
+alter table snapshots add column if not exists showcase jsonb;

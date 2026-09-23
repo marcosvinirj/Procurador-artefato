@@ -9,6 +9,7 @@ Regras que qualquer conector novo tem de respeitar:
 
 from __future__ import annotations
 
+import html
 import json
 import math
 import os
@@ -26,6 +27,7 @@ MAX_TERMS = 2
 USER_AGENT = "TrendPrint/1.0 (+https://github.com/trendprint)"
 
 ETSY_ENDPOINT = "https://openapi.etsy.com/v3/application/listings/active"
+ETSY_LISTINGS_BATCH_ENDPOINT = "https://openapi.etsy.com/v3/application/listings/batch"
 ETSY_LISTING_REVIEWS_ENDPOINT = "https://openapi.etsy.com/v3/application/listings/{listing_id}/reviews"
 TRENDS_EXPLORE = "https://trends.google.com/trends/api/explore"
 TRENDS_TIMESERIES = "https://trends.google.com/trends/api/widgetdata/multiline"
@@ -35,11 +37,15 @@ YOUTUBE_SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 
 
+SHOWCASE_SIZE = 4  # o Premium ve os 4 primeiros anuncios; o Pro, so o lider
+
+
 @dataclass(frozen=True)
 class Signal:
     demand_raw: float | None = None
     competition_raw: float | None = None
     margin_est: float | None = None
+    showcase: tuple[dict[str, Any], ...] = ()
 
 
 def terms_for(model: dict[str, Any]) -> list[str]:
@@ -49,26 +55,28 @@ def terms_for(model: dict[str, Any]) -> list[str]:
     return [model["keyword"], *synonyms][:MAX_TERMS]
 
 
-def etsy_market(client: httpx.Client, terms: Sequence[str]) -> tuple[float | None, float | None, str | None]:
+def etsy_market(
+    client: httpx.Client, terms: Sequence[str]
+) -> tuple[float | None, float | None, tuple[dict[str, Any], ...]]:
     """Saturacao (nr. de listagens ativas), proxy de margem (preco mediano do
-    topo) e o id da listagem lider do termo mais concorrido.
+    topo) e a vitrine: os primeiros anuncios do termo mais concorrido.
 
-    Esse terceiro valor nao serve para saturacao nem margem: e reaproveitado
-    por review_velocity, que precisa de uma listagem concreta para perguntar
-    "quantas avaliacoes novas". Devolve-lo daqui poupa uma segunda busca (o
-    orcamento do cron e ~10s); ir com o termo mais saturado, nao o mais
-    barato, mantem o mesmo criterio de "lider" usado para concorrencia.
+    A vitrine nao entra no score. O primeiro anuncio e reaproveitado por
+    review_velocity (precisa de uma listagem concreta para perguntar "quantas
+    avaliacoes novas"), e os outros so se mostram, conforme o plano. Vem da
+    mesma busca: nenhum pedido a mais. A foto nao vem nesta resposta da Etsy —
+    junta-se depois, em lote (etsy_images).
 
     Requer ETSY_API_KEY (endpoint app-level da API v3, sem OAuth). Sem chave
-    devolve (None, None, None) — o sinal fica em falta, nao a zero.
+    devolve (None, None, ()) — o sinal fica em falta, nao a zero.
     """
     key = os.environ.get("ETSY_API_KEY")
     if not key:
-        return None, None, None
+        return None, None, ()
 
     best_count: float | None = None
     best_price: float | None = None
-    best_listing_id: str | None = None
+    best_showcase: tuple[dict[str, Any], ...] = ()
     for term in terms:
         try:
             response = client.get(
@@ -89,14 +97,62 @@ def etsy_market(client: httpx.Client, terms: Sequence[str]) -> tuple[float | Non
             best_count = float(count)
             results = payload.get("results") or []
             best_price = _median_price(results)
-            best_listing_id = _top_listing_id(results)
-    return best_count, best_price, best_listing_id
+            best_showcase = _showcase(results)
+    return best_count, best_price, best_showcase
 
 
-def _top_listing_id(listings: Sequence[dict[str, Any]]) -> str | None:
-    """results[0]: o topo do sort_on=score, a listagem mais relevante da busca."""
-    listing_id = listings[0].get("listing_id") if listings else None
-    return str(listing_id) if listing_id is not None else None
+def _showcase(listings: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    """Os primeiros do sort_on=score, os mais relevantes da busca. So o que se
+    mostra; o link so passa se for mesmo da Etsy (vai para um href no site)."""
+    showcase = []
+    for listing in listings:
+        listing_id, url = listing.get("listing_id"), listing.get("url")
+        if not isinstance(listing_id, int) or not isinstance(url, str):
+            continue
+        if not url.startswith("https://www.etsy.com/listing/"):
+            continue
+        price = listing.get("price") or {}
+        amount, divisor, currency = price.get("amount"), price.get("divisor"), price.get("currency_code")
+        valid = isinstance(amount, int) and isinstance(divisor, int) and divisor > 0
+        showcase.append(
+            {
+                "listing_id": listing_id,
+                "title": html.unescape(str(listing.get("title") or ""))[:140],
+                "url": url.split("?")[0],
+                "price": round(amount / divisor, 2) if valid else None,
+                "currency": currency if isinstance(currency, str) else None,
+            }
+        )
+        if len(showcase) == SHOWCASE_SIZE:
+            break
+    return tuple(showcase)
+
+
+def etsy_images(client: httpx.Client, listing_ids: Sequence[int]) -> dict[int, str]:
+    """listing_id -> foto principal (570px), ate 100 anuncios por pedido. A
+    foto e da Etsy e fica la (o site so aponta para ela, nunca a copia). So
+    passa um endereco do CDN de imagens da Etsy. Falha devolve {}."""
+    key = os.environ.get("ETSY_API_KEY")
+    if not key or not listing_ids:
+        return {}
+    try:
+        response = client.get(
+            ETSY_LISTINGS_BATCH_ENDPOINT,
+            params={"listing_ids": ",".join(str(i) for i in listing_ids[:100]), "includes": "Images"},
+            headers={"x-api-key": key},
+        )
+        response.raise_for_status()
+        results = response.json().get("results") or []
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return {}
+    images = {}
+    for listing in results:
+        photos = sorted(listing.get("images") or [], key=lambda image: image.get("rank") or 99)
+        url = photos[0].get("url_570xN") if photos else None
+        listing_id = listing.get("listing_id")
+        if isinstance(listing_id, int) and isinstance(url, str) and url.startswith("https://i.etsystatic.com/"):
+            images[listing_id] = url
+    return images
 
 
 def _median_price(listings: Sequence[dict[str, Any]]) -> float | None:
@@ -362,17 +418,17 @@ def review_velocity(client: httpx.Client, listing_id: str | None) -> float | Non
 def collect(model: dict[str, Any], client: httpx.Client) -> Signal:
     """Compoe os conectores num sinal. Um conector que falhe nao afeta os outros."""
     terms = terms_for(model)
-    competition, margin, listing_id = etsy_market(client, terms)
+    competition, margin, showcase = etsy_market(client, terms)
     if competition is None or margin is None:
         ebay_competition, ebay_margin = ebay_market(client, terms)  # fallback quando o Etsy falta
         competition = ebay_competition if competition is None else competition
         margin = ebay_margin if margin is None else margin
-    demand = review_velocity(client, listing_id)
+    demand = review_velocity(client, str(showcase[0]["listing_id"]) if showcase else None)
     if demand is None:
         demand = google_trends_interest(client, terms)  # proxy enquanto o real nao liga
     if demand is None:
         demand = youtube_interest(client, terms)  # reserva quando o Trends falha/bloqueia
-    return Signal(demand_raw=demand, competition_raw=competition, margin_est=margin)
+    return Signal(demand_raw=demand, competition_raw=competition, margin_est=margin, showcase=showcase)
 
 
 def http_client() -> httpx.Client:

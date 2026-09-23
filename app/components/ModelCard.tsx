@@ -17,6 +17,16 @@ export function ModelCard({ model }: { model: ModelSummary }) {
       className="panel group flex flex-col gap-4 p-4 transition hover:border-open/50 hover:bg-panel"
     >
       <div className="flex items-start gap-3">
+        {model.showcase[0]?.image && (
+          // eslint-disable-next-line @next/next/no-img-element -- imagem da Etsy, servida pelo CDN deles
+          <img
+            src={model.showcase[0].image}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            className="h-14 w-14 shrink-0 rounded-lg border border-edge object-cover"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <h2 className="text-[15px] font-medium leading-snug text-slate-100">
             {nameLabel(locale, model.name)}

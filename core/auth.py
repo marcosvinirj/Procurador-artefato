@@ -17,16 +17,24 @@ from core import db
 TIMEOUT = httpx.Timeout(3.0, connect=2.0)
 
 
+FREE, PRO, PREMIUM = "free", "pro", "premium"
+PLANS = (FREE, PRO, PREMIUM)
+
+
 @dataclass(frozen=True)
 class Viewer:
     user_id: str | None = None
     email: str | None = None
-    is_paid: bool = False
+    plan: str = FREE
     is_admin: bool = False
 
     @property
     def authenticated(self) -> bool:
         return self.user_id is not None
+
+    @property
+    def is_paid(self) -> bool:
+        return self.plan in (PRO, PREMIUM)
 
 
 ANONYMOUS = Viewer()
@@ -59,5 +67,5 @@ def viewer_from_authorization(authorization: str | None) -> Viewer:
     # o acesso exige um email valido, e so o link de confirmacao o prova.
     if not confirmed:
         return ANONYMOUS
-    paid, admin = db.access(user_id)
-    return Viewer(user_id=user_id, email=email, is_paid=paid, is_admin=admin)
+    plan, admin = db.access(user_id)
+    return Viewer(user_id=user_id, email=email, plan=plan, is_admin=admin)
